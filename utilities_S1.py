@@ -111,9 +111,11 @@ def checkItems(listIn, listSearch):
 
 
 if __name__ == "__main__":
-    datesDownloaded = getDatesFromList('downloadedSAFE-new.txt', 'SAFE', 139)
+    #datesDownloaded = getDatesFromList('downloadedSAFE-new.txt', 'SAFE', 139)
 
-    datesASF = getDatesFromList('all_S1_144_06142019.py', 'ASF', 151)
+    #datesASF = getDatesFromList('all_S1_144_06142019.py', 'ASF', 151)
 
     #plotSceneDates(datesDownloaded, datesASF, ['Downloaded', 'All'])
-    checkItems(datesASF, datesDownloaded)
+    #checkItems(datesASF, datesDownloaded)
+
+    print("Yay for github!")
