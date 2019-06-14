@@ -1,12 +1,59 @@
 import matplotlib.pyplot as plt
+import matplotlib.image as img
 import numpy as np
 import glob as glob
 import sys
 import datetime as dt
 import subprocess
-import netcdf_read_write
-# Original version by Kathryn Materna
+# Modified from Kathryn Materna's 'phasefilt_plot.py' to take PNG images from Sentinel-1 .SAFE data packages.
 
+
+
+# TOP LEVEL DRIVER
+def top_level_driver(skip_file=[]):
+
+
+# ------------- CONFIGURE ------------ #
+def configure():
+    file_dir = "data"
+    file_type = "quick-look.png"
+    outdir = 'quick-look-all/'
+
+    subprocess.call(['mkdir', '-p', outdir], shell=False)
+
+    file_names = glob.glob(file_dir + "/*/" + file_type)
+    if len(file_names) == 0:
+        print("Error! No files matching search pattern.")
+        sys.exit(1)
+    print("Reading " + str(len(file_names)) + " files.")
+    num_plots_x = 4
+    num_plots_y = 3
+    return [file_names, outdir, num_plots_x, num_plots_y]
+
+
+# ------------- INPUTS ------------ #
+def inputs(file_names, skip_file):
+
+
+
+def make_plots(xdata, ydata, data_all, date_pairs, outdir, num_plots_x, num_plots_y, skip_intfs):
+
+    
+
+
+if __name__ == "__main__":
+    top_level_driver()
+
+
+
+
+
+
+
+
+
+
+"""
 
 # TOP LEVEL DRIVER
 def top_level_driver(skip_file=[]):
@@ -18,9 +65,9 @@ def top_level_driver(skip_file=[]):
 
 # ------------- CONFIGURE ------------ #
 def configure():
-    file_dir = "intf_all"
-    file_type = "phasefilt.grd"
-    outdir = 'phasefilt/'
+    file_dir = "data"
+    file_type = "quick-look.png"
+    outdir = 'quick-look-all/'
 
     subprocess.call(['mkdir', '-p', outdir], shell=False)
 
