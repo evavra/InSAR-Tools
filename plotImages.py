@@ -1,160 +1,86 @@
 import matplotlib.pyplot as plt
 import matplotlib.image as img
-import numpy as np
-import glob as glob
 import sys
-import datetime as dt
+import glob as glob
 import subprocess
-# Modified from Kathryn Materna's 'phasefilt_plot.py' to take PNG images from Sentinel-1 .SAFE data packages.
+import numpy as np
+# Original version by Kathryn Materna
 
+def topLevelDriver():
+    fileList, outdir = configure()
+    makePlots(fileList, outdir)
 
-
-# TOP LEVEL DRIVER
-def top_level_driver(skip_file=[]):
-
-
-# ------------- CONFIGURE ------------ #
 def configure():
-    file_dir = "data"
-    file_type = "quick-look.png"
-    outdir = 'quick-look-all/'
+    file_dir = 'data'
+    file_type = 'preview/quick-look.png'
+    outdir = 'Preview_Summary'
 
     subprocess.call(['mkdir', '-p', outdir], shell=False)
 
-    file_names = glob.glob(file_dir + "/*/" + file_type)
-    if len(file_names) == 0:
+    fileList = glob.glob(file_dir + "/*/" + file_type)
+
+
+    if len(fileList) == 0:
         print("Error! No files matching search pattern.")
         sys.exit(1)
-    print("Reading " + str(len(file_names)) + " files.")
-    num_plots_x = 4
-    num_plots_y = 3
-    return [file_names, outdir, num_plots_x, num_plots_y]
 
+    print("Reading " + str(len(fileList)) + " files.")
+    print(fileList)
+    print("Output directory '" + outdir + "' created.")
 
-# ------------- INPUTS ------------ #
-def inputs(file_names, skip_file):
-
-
-
-def make_plots(xdata, ydata, data_all, date_pairs, outdir, num_plots_x, num_plots_y, skip_intfs):
-
-    
-
-
-if __name__ == "__main__":
-    top_level_driver()
-
-
-
-
-
-
-
-
-
+    return fileList, outdir
 
 """
+def plotImages(fileList, plotIndex):
+   # imageList should contain paths relative to  asc/des data directories, i.e.: data/S1A_IW_SLC__1SDV_20171128T135926_20171128T135953_019466_021079_09A4.SAFE/preview/quick-look.png
 
-# TOP LEVEL DRIVER
-def top_level_driver(skip_file=[]):
-    [file_names, outdir, num_plots_x, num_plots_y] = configure()
-    [xdata, ydata, data_all, date_pairs, skip_intfs] = inputs(file_names, skip_file)
-    make_plots(xdata, ydata, data_all, date_pairs, outdir, num_plots_x, num_plots_y, skip_intfs)
+    fig = plt.figure
+    plt.figure(figsize=(14.13, 8.2))
+    plt.rc('font', size=5)          # controls default text sizes
+
+
+    for i in range(12):
+        image = img.imread(fileList[i])
+        plt.subplot(2,6,i+1)
+        plt.title(fileList[i][22:30])
+        plt.imshow(image)
+
+    plt.show()
+    plt.savefig(outdir + "/selected_data_" + str(int(plotIndex)) + ".eps")
+    print("Plot " + (plotIndex+1) + "saved as " + outdir + "/selected_data_" + str(int(i)) + ".eps")
+"""
+
+def makePlots(fileList, outdir):
+    # Find number of images to plot
+    n = len(fileList)
+
+    if (n % 12) == 0:
+        nPlots = int(n/12)
+    else:
+        nPlots = int(np.floor(n/12) + 1)
+
+    for h in range(nPlots):
+        # old: plotImages(fileList[i:i+12], i)
+        newList = fileList[h:h+12]
+
+        fig = plt.figure
+        plt.figure(figsize=(14.13, 8.2))
+        plt.rc('font', size=5)          # controls default text sizes
+
+        for i in range(12):
+            image = img.imread(fileList[i])
+            plt.subplot(2,6,i+1)
+            plt.title(fileList[i][22:30])
+            plt.imshow(image)
+
+        plt.show()
+        plt.savefig(outdir + "/selected_data_" + str(int(h)) + ".eps")
+        print("Plot " + str(int(h+1)) + " saved as /" + outdir + "/selected_data_" + str(int(h)) + ".eps")
+        plt.close()
+
     return
 
-
-# ------------- CONFIGURE ------------ #
-def configure():
-    file_dir = "data"
-    file_type = "quick-look.png"
-    outdir = 'quick-look-all/'
-
-    subprocess.call(['mkdir', '-p', outdir], shell=False)
-
-    file_names = glob.glob(file_dir + "/*/" + file_type)
-    if len(file_names) == 0:
-        print("Error! No files matching search pattern.")
-        sys.exit(1)
-    print("Reading " + str(len(file_names)) + " files.")
-    num_plots_x = 4
-    num_plots_y = 3
-    return [file_names, outdir, num_plots_x, num_plots_y]
-
-
-# ------------- INPUTS ------------ #
-def inputs(file_names, skip_file):
-    try:
-        [xdata, ydata] = netcdf_read_write.read_grd_xy(file_names[0])  # can read either netcdf3 or netcdf4.
-    except TypeError:
-        [xdata, ydata] = netcdf_read_write.read_netcdf4_xy(file_names[0])
-    data_all = []
-    date_pairs = []
-
-    file_names = sorted(file_names)  # To force into date-ascending order.
-
-    for ifile in file_names:  # Read the data
-        try:
-            data = netcdf_read_write.read_grd(ifile)
-        except TypeError:
-            data = netcdf_read_write.read_netcdf4(ifile)
-        data_all.append(data)
-        pairname = ifile.split('/')[-2][0:15];
-        date_pairs.append(pairname)  # returning something like '2016292_2016316' for each intf
-        print(pairname)
-
-    skip_intfs = []
-    if len(skip_file) > 0:
-        ifile = open(skip_file, 'r')
-        for line in ifile:
-            skip_intfs.append(line.split()[0])
-        ifile.close()
-
-    return [xdata, ydata, data_all, date_pairs, skip_intfs]
-
-
-def make_plots(xdata, ydata, data_all, date_pairs, outdir, num_plots_x, num_plots_y, skip_intfs):
-
-    for i in range(len(data_all)):
-        if np.mod(i, num_plots_y * num_plots_x) == 0:
-            count = i
-
-            fignum = i / (num_plots_y * num_plots_x)  # counting figures up 0 to 1 to 2....
-
-            # Looping forward and plotting the next 12 plots...
-            f, axarr = plt.subplots(num_plots_y, num_plots_x, figsize=(10, 10))
-            for k in range(num_plots_y):
-                for m in range(num_plots_x):
-                    if count == len(data_all):
-                        break
-
-                    # How many days separate this interferogram?
-                    day1 = date_pairs[count].split('_')[0]
-                    day2 = date_pairs[count].split('_')[1]
-                    if day1[4:7] == "000":
-                        day1 = day1[0:6] + "1";
-                    if day2[4:7] == "000":
-                        day2 = day2[0:6] + "1";
-                    dt1 = dt.datetime.strptime(day1, '%Y%j')
-                    dt2 = dt.datetime.strptime(day2, '%Y%j')
-                    deltat = dt2 - dt1
-                    daysdiff = deltat.days
-
-                    # The actual plotting
-                    axarr[k][m].imshow(data_all[count], cmap='jet', aspect=0.5)
-                    axarr[k][m].invert_yaxis()
-                    axarr[k][m].invert_xaxis()
-                    axarr[k][m].get_xaxis().set_ticks([])
-                    axarr[k][m].get_yaxis().set_ticks([])
-                    if str(date_pairs[count]) in skip_intfs:
-                        axarr[k][m].set_title(str(date_pairs[count]) + '   ' + str(daysdiff) + ' days', fontsize=8, color='red', fontweight='bold')
-                    else:
-                        axarr[k][m].set_title(str(date_pairs[count]) + '   ' + str(daysdiff) + ' days', fontsize=8, color='black')
-
-                    count = count + 1
-            plt.savefig(outdir + "selected_data_" + str(int(fignum)) + ".eps")
-            plt.close()
-    return
 
 
 if __name__ == "__main__":
-    top_level_driver()
+    topLevelDriver()
