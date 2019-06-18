@@ -4,11 +4,14 @@ import sys
 import glob as glob
 import subprocess
 import numpy as np
+
 # Original version by Kathryn Materna
+# Modified by Ellis Vavra
 
 def topLevelDriver():
     fileList, outdir = configure()
-    makePlots(fileList, outdir)
+    makePlots(fileList, outdir, 10)
+    subprocess.call(['open', outdir], shell=False)
 
 def configure():
     file_dir = 'data'
@@ -30,52 +33,31 @@ def configure():
 
     return fileList, outdir
 
-"""
-def plotImages(fileList, plotIndex):
-   # imageList should contain paths relative to  asc/des data directories, i.e.: data/S1A_IW_SLC__1SDV_20171128T135926_20171128T135953_019466_021079_09A4.SAFE/preview/quick-look.png
 
-    fig = plt.figure
-    plt.figure(figsize=(14.13, 8.2))
-    plt.rc('font', size=5)          # controls default text sizes
-
-
-    for i in range(12):
-        image = img.imread(fileList[i])
-        plt.subplot(2,6,i+1)
-        plt.title(fileList[i][22:30])
-        plt.imshow(image)
-
-    plt.show()
-    plt.savefig(outdir + "/selected_data_" + str(int(plotIndex)) + ".eps")
-    print("Plot " + (plotIndex+1) + "saved as " + outdir + "/selected_data_" + str(int(i)) + ".eps")
-"""
-
-def makePlots(fileList, outdir):
+def makePlots(fileList, outdir, numPlots):
     # Find number of images to plot
     n = len(fileList)
 
-    if (n % 12) == 0:
-        nPlots = int(n/12)
+    if (n % numPlots) == 0:
+        nPlots = int(n/numPlots)
     else:
-        nPlots = int(np.floor(n/12) + 1)
+        nPlots = int(np.floor(n/numPlots) + 1)
 
     for h in range(nPlots):
-        # old: plotImages(fileList[i:i+12], i)
-        newList = fileList[h:h+12]
+        newList = fileList[(h * numPlots):(h + 1) * numPlots]
 
         fig = plt.figure
-        plt.figure(figsize=(14.13, 8.2))
-        plt.rc('font', size=5)          # controls default text sizes
+        plt.figure(figsize=(25, 18))
+        plt.rc('font', size=8)          # controls default text sizes
 
-        for i in range(12):
-            image = img.imread(fileList[i])
-            plt.subplot(2,6,i+1)
-            plt.title(fileList[i][22:30])
+        for i in range(len(newList)):
+            image = img.imread(newList[i])
+            plt.subplot(2,numPlots/2,i+1)
+            plt.title(newList[i][5:8] + "*" + newList[i][22:30] + "*" + newList[i][68:77])
             plt.imshow(image)
 
-        plt.show()
-        plt.savefig(outdir + "/selected_data_" + str(int(h)) + ".eps")
-        print("Plot " + str(int(h+1)) + " saved as /" + outdir + "/selected_data_" + str(int(h)) + ".eps")
+        plt.savefig(outdir + "/selected_data_" + str(int(h+1)) + ".eps")
+        print("Plot " + str(int(h+1)) + " saved as /" + outdir + "/selected_data_" + str(int(h+1)) + ".eps")
         plt.close()
 
     return
