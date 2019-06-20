@@ -42,7 +42,7 @@ def copyOrbits(SAFE_filelist):
     # Search S1 orbit home directory using searchList
     for item in searchList:
         print('Searching ' + item)
-        subprocess.call(['cp', homedir + item, '.'], shell=False)
+        subprocess.call(['cp', (homedir + item), '.'], shell=True)
         print(item + 'copied')
 
 
