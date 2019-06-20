@@ -36,8 +36,8 @@ def copyOrbits(SAFE_filelist):
     searchList = []
     for line in SAFE_list:
         # Ex: S1A*V20160325*20160327*.EOF
-        searchList.append(line[40:43] + '*V' + str(int(line[57:63]) - 1) + '*' + str(int(line[57:63]) + 1) + '*.EOF')
-        print(line[40:43] + '*V' + str(int(line[57:63]) - 1) + '*' + str(int(line[57:63]) + 1) + '*.EOF')
+        searchList.append(line[40:43] + '*V' + str(int(line[57:65]) - 1) + '*' + str(int(line[57:65]) + 1) + '*.EOF')
+        print(line[40:43] + '*V' + str(int(line[57:65]) - 1) + '*' + str(int(line[57:65]) + 1) + '*.EOF')
 
     # Search S1 orbit home directory using searchList
     for item in searchList:
