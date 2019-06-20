@@ -1,5 +1,7 @@
-import subprocesss
+import sys
 import glob as glob
+import subprocess
+
 
 """
 getOrbits:
@@ -11,7 +13,7 @@ def makeOrbitList():
     print('Translating makeOrbitList from Organize_files_tops.csh still underway...')
 
 
-def getOrbitURL(orbitList):
+def getOrbitURL(filename):
     """
     From list of Sentinel-1 orbit file names, get the corresponding URLs for the Sentinel-1 Quality Control data portal (https://qc.sentinel1.eo.esa.int/)
     Input filename list:
@@ -25,13 +27,25 @@ def getOrbitURL(orbitList):
     ...
     """
 
+    # Set data portal root URL
     rootURL = 'http://aux.sentinel1.eo.esa.int/POEORB'
 
+    # Read orbitList into a Python list
+    with open(filename, "r") as tempFile:
+        EOF_list = tempFile.readlines()
+
+    orbitList = []
+    for line in EOF_list:
+        orbitList.append(line)
+        print()
+
+
+    # Create list of URLS from list of EOF filenames
     urls = []
 
     for fileName in orbitList:
-        urls.append(rootURL + "/" + fileName[25:29] + "/" + fileName[29:31] + "/" + fileName[31:33] + "/" +  fileName)
-        print(rootURL + "/" + fileName[25:29] + "/" + fileName[29:31] + "/" + fileName[31:33] + "/" +  fileName))
+        urls.append(rootURL + "/" + fileName[25:29] + "/" + fileName[29:31] + "/" + fileName[31:33] + "/" +  fileName[:-1])
+        print(rootURL + "/" + fileName[25:29] + "/" + fileName[29:31] + "/" + fileName[31:33] + "/" +  fileName[:-1])
 
     return urls
 
@@ -42,23 +56,14 @@ def downloadOrbits(urls):
     """
 
     for item in urls:
+        print('Downloading ' + item[50:])
         subprocess.call(['wget', item], shell=False)
-
-
-
-
-
-
-
-
-
-
 
 
 if __name__ == '__main__':
 
-    testList = ['S1B_OPER_AUX_POEORB_OPOD_20190619T110540_V20190529T225942_20190531T005942.EOF','S1A_OPER_AUX_POEORB_OPOD_20190619T120814_V20190529T225942_20190531T005942.EOF']
-
-    getOrbitURL(testList)
+    urls = getOrbitURL('testList')
+    print(urls)
+    downloadOrbits(urls)
 
 
