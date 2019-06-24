@@ -110,12 +110,21 @@ def checkItems(listIn, listSearch):
     return listOut
 
 
+def rename_intf_in(intf_in, swath):
+
+    with open(intf_in) as file_list:
+        tempList = file_list.readlines()
+
+    new_list = []
+
+    for i in range(len(tempList)):
+        # s1a-iw2-slc-vv-20170707t135930-20170707t135950-017366-01d006-005:s1a-iw2-slc-vv-20170812t135932-20170812t135952-017891-01e00b-005
+        new_list.append('S1_' + tempList[i][15:23] + '_ALL_' + swath + ':' + 'S1_' + tempList[i][80:88] + '_ALL_' + swath )
+        print(new_list[i])
+
+    return new_list
+
 if __name__ == "__main__":
-    #datesDownloaded = getDatesFromList('downloadedSAFE-new.txt', 'SAFE', 139)
+    new_names = rename_intf_in('test_rename', 'F2')
 
-    #datesASF = getDatesFromList('all_S1_144_06142019.py', 'ASF', 151)
 
-    #plotSceneDates(datesDownloaded, datesASF, ['Downloaded', 'All'])
-    #checkItems(datesASF, datesDownloaded)
-
-    print("Yay for github!")

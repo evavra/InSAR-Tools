@@ -37,9 +37,20 @@ def copyOrbits(SAFE_filelist):
     print('Search strings...')
     searchList = []
     for line in SAFE_list:
-        # Ex: S1A*V20160325*20160327*.EOF
-        searchList.append(homedir + line[40:43] + '*V' + str(int(line[57:65]) - 1) + '*' + str(int(line[57:65]) + 1) + '*.EOF')
-        print(line[40:43] + '*V' + str(int(line[57:65]) - 1) + '*' + str(int(line[57:65]) + 1) + '*.EOF')
+
+
+        if int(line[63:65]) == 1:
+            # Need to account for month change
+            # In: .../S1A_IW_SLC__1SSV_20170201T135916_20170201T135944_015091_018AB7_370C.SAFE
+            # Out: S1A*V20160325*20160327*.EOF
+            searchList.append(homedir + line[40:43] + '*V' + str(int(line[57:65]) - 1) + '*' + str(int(line[57:65]) + 1) + '*.EOF')
+
+
+
+        else:
+            # Ex: S1A*V20160325*20160327*.EOF
+            searchList.append(homedir + line[40:43] + '*V' + str(int(line[57:65]) - 1) + '*' + str(int(line[57:65]) + 1) + '*.EOF')
+            print(line[40:43] + '*V' + str(int(line[57:65]) - 1) + '*' + str(int(line[57:65]) + 1) + '*.EOF')
 
 
     # lets try something else...
