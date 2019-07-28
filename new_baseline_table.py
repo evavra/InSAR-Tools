@@ -6,6 +6,34 @@ import datetime as dt
 import math
 
 
+# -------------------------------- DRIVER -------------------------------- #
+
+def driver():
+    baseline_table = 'baseline_table.dat'
+    tmin = 335
+    tmax = 395
+    bmax = 50
+    satellite = 1
+    swath = 2
+    output_filename = 'intf.in.335-395d_50m'
+
+    orbit, dates, jday, blpara, blperp, datelabels = readBaselineTable(baseline_table)
+    intf_list, intf_in = makePairs(dates, blperp, tmin, tmax, bmax, satellite, swath, output_filename)
+
+    noisy_intfs = readIntfList("noisy_intfs_all.txt")
+
+    print("Number of interferograms: " + str(len(intf_list)))
+    print("Number of noisy interferograms: " + str(len(noisy_intfs)))
+
+    plotBaselineTable(dates, blperp, intf_list, noisy_intfs)
+    # plotIntfDist(dates, intf_list, noisy_intfs)
+
+    
+
+ 
+
+
+
 # -------------------------------- CONFIGURE -------------------------------- #
 def readIntfList(filename):
     print("Opening " + filename)
@@ -23,7 +51,7 @@ def readIntfList(filename):
     return intf_dates
 
 
-def readBaselineTable(input):
+def readBaselineTable(baseline_table):
     orbit = []
     dates = []
     jday = []
@@ -32,7 +60,7 @@ def readBaselineTable(input):
     temparray = []
     datelabels = []
 
-    with open(input, 'r') as tempfile:
+    with open(baseline_table, 'r') as tempfile:
         for line in tempfile:
             temparray = line.split()
             print(temparray)
@@ -50,9 +78,11 @@ def readBaselineTable(input):
     #print(orbit, numdate, jday, blpara, blperp, date)
     return orbit, dates, jday, blpara, blperp, datelabels
 
+
+
 # # -------------------------------- INPUTS -------------------------------- #
 
-def makePairs(dates, blperp, tmax, bmax):
+def makePairs(dates, blperp, tmin, tmax, bmax, satellite, swath, output_filename):
 
     intf_list = []
     intf_in = []
@@ -69,7 +99,7 @@ def makePairs(dates, blperp, tmax, bmax):
 
             # Check if pair meets baseline criteria
             # Add pair to intf_list if it meets the input B_p and B_t thresholds
-            if B_p <= bmax and B_t.days <= tmax:
+            if B_p <= bmax and B_t.days >= tmin and B_t.days <= tmax:
                 print(dates[i].strftime("%Y%m%d")  + "_" + dates[j].strftime("%Y%m%d")  + ": " + str(round(B_p, 3)) + "m (" + str(B_t.days) + " days)")
                 intf_list.append([i, j])
                 intf_in.append(dates[i].strftime("%Y%m%d")  + "_" + dates[j].strftime("%Y%m%d"))
@@ -77,11 +107,25 @@ def makePairs(dates, blperp, tmax, bmax):
             else:
                 j+=1
 
-    print("Number of interferograms: " + str(len(intf_list)))
 
+    # Write new intf.in.NEW in following format:
+    #   S1_20180508_ALL_F1:S1_20180514_ALL_F1
+    with open(output_filename, 'w') as newList:
+        for pair in intf_in:
+            newList.write("S" + str(satellite) + '_' + pair[0:8] + '_ALL_F' + str(swath) + ':' + "S" + str(satellite) + '_' + pair[9:17] + '_ALL_F' + str(swath) + '\n')
+        print('Pairs:')
+        print(newList)
+
+    print("Number of interferograms: " + str(len(intf_list)))
+    print('Pairs:')
+    
     return intf_list, intf_in
 
-# -------------------------------- PLOTTING -------------------------------- #
+
+
+# -------------------------------- OUTPUT -------------------------------- #
+
+
 def plotBaselineTable(dates, blperp, intf_list, noisy_intfs):
     # Establish figure
     fig, ax = plt.subplots()
@@ -105,7 +149,6 @@ def plotBaselineTable(dates, blperp, intf_list, noisy_intfs):
     plt.xlabel('Year')
     plt.ylabel('Baseline (m)')
     plt.show()
-
 
 
 def plotIntfDist(dates, intf_list, noisy_intfs):
@@ -142,13 +185,4 @@ def plotIntfDist(dates, intf_list, noisy_intfs):
 
 
 if __name__ == "__main__":
-    orbit, dates, jday, blpara, blperp, datelabels = readBaselineTable('baseline_table.dat')
-    intf_list, intf_in = makePairs(dates, blperp, 120, 300)
-
-    noisy_intfs = readIntfList("noisy_intfs_1&2")
-
-    print("Number of interferograms: " + str(len(intf_list)))
-    print("Number of noisy interferograms: " + str(len(noisy_intfs)))
-
-    plotBaselineTable(dates, blperp, intf_list, noisy_intfs)
-    #plotIntfDist(dates, intf_list, noisy_intfs)
+    driver()
