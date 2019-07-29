@@ -35,35 +35,48 @@ def driver():
     stage = 'original'
     intf_table = 'coherence_analysis_downsampled.dat'
 
-    # Get paths to target .grds
-    path_list = getPaths(homedir, filetype)
+    corr_min = 0.2
+    corr_max = 1.0
+    output_name = 'unwrap_intfs_0.2.in'
 
-    # Calulate means
-    means = getMeans(path_list, area, filetype)
+    # # Get paths to target .grds
+    # path_list = getPaths(homedir, filetype)
 
-    # Write data to interferogram tuple
-    iTuple = intfTuple(path_list, means, baseline_table, filetype, stage)
+    # # Calulate means
+    # means = getMeans(path_list, area, filetype)
 
-    # Save tuple to .dat file for safe keeping
-    writeData(iTuple, intf_table)
+    # # Write data to interferogram tuple
+    # iTuple = intfTuple(path_list, means, baseline_table, filetype, stage)
 
-    # Make coherence plot
+    # # Save tuple to .dat file for safe keeping
+    # writeData(iTuple, intf_table)
+
+    # # Make coherence plot
+    # # iTuple = readIntfTable(intf_table)
+    # plotIntfCoherence(iTuple, baseline_table, filetype, stage)
+
+    # # Count number of times used
+    # # iTuple = readIntfTable(intf_table)
+    # scene_dates, date_sums = count(iTuple)
+
+    # # Get mean coherence for each scene
+    # # iTuple = readIntfTable(intf_table)
+    # scene_dates, mean_scene_coherence = sceneCorr(iTuple)
+
+    # # Plot mean scene coherence
+    # plotSceneCoherence(scene_dates, mean_scene_coherence, date_sums)
+
+    # # Plot interferogram coherence distribution
     # iTuple = readIntfTable(intf_table)
-    plotIntfCoherence(iTuple, baseline_table, filetype, stage)
+    # plotCorrHist(iTuple)
 
-    # Count number of times used
-    # iTuple = readIntfTable(intf_table)
-    scene_dates, date_sums = count(iTuple)
-
-    # Get mean coherence for each scene
-    # iTuple = readIntfTable(intf_table)
-    scene_dates, mean_scene_coherence = sceneCorr(iTuple)
-
-    # plot mean scene coherence
-    plotSceneCoherence(scene_dates, mean_scene_coherence, date_sums)
-
+    # Filter intferogram list based off of coherence
+    iTuple = readIntfTable(intf_table)
+    intf_list = sortFromCorr(iTuple, corr_min, corr_max, output_name)
+    writeIntfList(intf_list, output_name)
 
 # -------------------------------- CONFIGURE -------------------------------- #
+
 
 def getPaths(homedir, filetype):
         # Find all .grd files of given type
@@ -112,7 +125,7 @@ def getMeans(path_list, area, filetype):
     for path in path_list:
         # Calulate mean and save to temporary file
         newFilePath = path[0:(len(path) - len(filetype))] + "mean_corr.grd"
-        
+
         subprocess.call("gmt grdmath " + path + " MEAN = " + newFilePath, shell=True)
 
         # Extract mean
@@ -233,6 +246,22 @@ def sceneCorr(iTuple):
     return scene_dates, mean_scene_coherence
 
 
+def sortFromCorr(iTuple, corr_min, corr_max, output_name):
+    # Find indicies of all interferograms who meet the minimum coherence threshold
+    intf_list = []
+
+    print()
+    print('Interferograms with coherence between ' + str(corr_min) + ' and ' + str(corr_max))
+
+    for i in range(len(iTuple.paths)):
+        if iTuple.mean_coherence[i] >= corr_min and iTuple.mean_coherence[i] < corr_max:
+            intf_list.append(iTuple.date_pairs[i])
+            print(iTuple.date_pairs[i] + ': ' + str(iTuple.mean_coherence[i]))
+
+    # print(intf_list)
+    return intf_list
+
+
 # -------------------------------- OUTPUT -------------------------------- #
 
 def intfTuple(path_list, means, baseline_table, filetype, stage):
@@ -329,6 +358,20 @@ def writeData(iTuple, intf_table):
     return newTable
 
 
+def writeIntfList(intf_list, output_name):
+    print()
+    print('Writing...')
+
+    with open(output_name, 'w') as newList:
+        for intf in intf_list:
+            print(intf)
+            #newList.write(intf + '\n')
+
+    print()
+    print('File written:')
+    print(newList)
+
+
 def plotIntfCoherence(iTuple, baseline_table, filetype, stage):
     # Read in data data
 
@@ -358,24 +401,6 @@ def plotIntfCoherence(iTuple, baseline_table, filetype, stage):
 
     plt.show()
 
-    # OLD
-    # def plotCoherence(iTuple, baseline_table):
-    #     # Establish figure
-    #     fig, ax = plt.subplots()
-
-    #     # Plot interferograms and their coherence
-    #     for i in range(len(iTuple.mean_coherence)):
-    #         plt.plot([iTuple.master[i], iTuple.slave[i]], [iTuple.mean_coherence[i], iTuple.mean_coherence[i]], zorder=3, color='C3')
-
-    #     # Figure features
-    #    # ax.xaxis.set_minor_locator(AutoMinorLocator())
-    #     plt.grid(axis='x', zorder=1)
-    #     plt.xlim(min(iTuple.master, default=dt.datetime.strptime('20141201', "%Y%m%d")) - dt.timedelta(days=5), max(iTuple.slave, default=dt.datetime.strptime('20190801', "%Y%m%d")) + dt.timedelta(days=5))
-    #     plt.ylim(0, 1)
-    #     plt.xlabel('Date')
-    #     plt.ylabel('Mean coherence')
-    #     plt.show()
-
 
 def plotSceneCoherence(scene_dates, mean_scene_coherence, date_sums):
     # Establish figure
@@ -400,6 +425,20 @@ def plotSceneCoherence(scene_dates, mean_scene_coherence, date_sums):
     cticks = np.arange(0, max(date_sums) + 1, 4)
     cbar = plt.colorbar(ticks=cticks)
     cbar.set_label("Number of interferograms")
+
+    plt.show()
+
+
+def plotCorrHist(iTuple):
+    # Establish figure
+    fig, ax = plt.subplots()
+
+    plt.hist(iTuple.mean_coherence, bins=100)
+
+    # Figure features
+    plt.grid(axis='x', zorder=1)
+    plt.xlabel('Mean coherence ')
+    plt.ylabel('Number of interferograms')
 
     plt.show()
 
