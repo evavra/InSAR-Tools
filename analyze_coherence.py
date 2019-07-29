@@ -112,7 +112,8 @@ def getMeans(path_list, area, filetype):
     for path in path_list:
         # Calulate mean and save to temporary file
         newFilePath = path[0:(len(path) - len(filetype))] + "mean_corr.grd"
-        # subprocess.call("gmt grdmath " + path + " MEAN = " + newFilePath, shell=True)
+        
+        subprocess.call("gmt grdmath " + path + " MEAN = " + newFilePath, shell=True)
 
         # Extract mean
         mean_value = float(subprocess.check_output("gmt grdinfo " + newFilePath + " | grep z_min | awk '{print $3}'", shell=True))
