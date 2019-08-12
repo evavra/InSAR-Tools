@@ -5,6 +5,7 @@ import sys
 import datetime as dt
 import subprocess
 import netcdf_read_write
+from mpl_toolkits.axes_grid1 import AxesGrid
 
 # Original version by Kathryn Materna
 # Modified by Ellis Vavra
@@ -13,15 +14,19 @@ import netcdf_read_write
 # TOP LEVEL DRIVER
 def top_level_driver():
     [file_names, outdir, num_plots_x, num_plots_y] = configure()
+
     [xdata, ydata, data_all, titles] = inputs(file_names)
-    make_plots(xdata, ydata, data_all, outdir, num_plots_x, num_plots_y, titles)
+
+    # make_plots(xdata, ydata, data_all, outdir, num_plots_x, num_plots_y, titles)
+
+    insar_panels(xdata, ydata, data_all, outdir, num_plots_x, num_plots_y, titles)
     return
 
 
 # ------------- CONFIGURE ------------ #
 def configure():
-    # file_dir = "/Users/ellisvavra/Desktop/Thesis/S1_Processing/NSBAS/INT3/" # Laptop
-    file_dir = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt6/SBAS_SMOOTH_0.0000e+00/INT3/" # Lorax
+    file_dir = "/Users/ellisvavra/Desktop/Thesis/S1_Processing/NSBAS/INT3/"  # Laptop
+    # file_dir = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt6/SBAS_SMOOTH_0.0000e+00/INT3/"  # Lorax
     file_type = "LOS_*_INT3.grd"
     # file_type = "LOS_20190709_INT3.grd"
     outdir = 'preview'
@@ -95,18 +100,6 @@ def make_plots(xdata, ydata, data_all, outdir, num_plots_x, num_plots_y, titles)
                     if count == len(data_all):
                         break
 
-                    # How many days separate this interferogram?
-                    # day1 = date_pairs[count].split('_')[0]
-                    # day2 = date_pairs[count].split('_')[1]
-                    # if day1[4:7] == "000":
-                    #     day1 = day1[0:6] + "1";
-                    # if day2[4:7] == "000":
-                    #     day2 = day2[0:6] + "1";
-                    # dt1 = dt.datetime.strptime(day1, '%Y%j')
-                    # dt2 = dt.datetime.strptime(day2, '%Y%j')
-                    # deltat = dt2 - dt1
-                    # daysdiff = deltat.days
-
                     # The actual plotting
                     axarr[k][m].imshow(data_all[count], cmap='jet', aspect=0.75)
                     plt.colorbar()
@@ -120,18 +113,55 @@ def make_plots(xdata, ydata, data_all, outdir, num_plots_x, num_plots_y, titles)
                     print(titles[count])
 
                     count = count + 1
-            
+
             plt.savefig("time-series-1.eps")
             # plt.show()
             plt.close()
 
     return
 
+
 def insar_panels(xdata, ydata, data_all, outdir, num_plots_x, num_plots_y, titles):
 
+    rows = num_plots_y
+    cols = num_plots_x
+    count = 0
 
+    fig = plt.figure(figsize=(rows * 12, cols * 10))
 
-    
+    grid = AxesGrid(fig, 111,
+                    nrows_ncols=(rows, cols),
+                    axes_pad=0.05,
+                    cbar_mode='single',
+                    cbar_location='right',
+                    cbar_pad=0.1
+                    )
+
+    print('Number of files: ' + str(len(data_all)))
+
+    for ax in grid:
+        if count == len(data_all):
+            break
+
+        ax.set_axis_off()
+        im = ax.imshow(data_all[count], cmap='jet', aspect=0.75)
+        ax.set_title(titles[count], fontsize=8, color='black')
+        ax.invert_yaxis()
+        ax.invert_xaxis()
+
+        print(titles[count])
+        count += 1
+
+    # when cbar_mode is 'single', for ax in grid, ax.cax = grid.cbar_axes[0]
+    cbar = ax.cax.colorbar(im)
+    cbar = grid.cbar_axes[0].colorbar(im)
+
+    # cbar.ax.set_yticks(np.arange(0, 1.1, 0.5))
+    # cbar.ax.set_yticklabels(['low', 'medium', 'high'])
+
+    # plt.show()
+    plt.savefig("time-series.eps")
+
 
 if __name__ == "__main__":
     top_level_driver()
