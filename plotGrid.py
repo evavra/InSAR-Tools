@@ -20,7 +20,8 @@ def top_level_driver():
 
 # ------------- CONFIGURE ------------ #
 def configure():
-    file_dir = "/Users/ellisvavra/Desktop/Thesis/S1_Processing/NSBAS/INT3/"
+    # file_dir = "/Users/ellisvavra/Desktop/Thesis/S1_Processing/NSBAS/INT3/" # Laptop
+    file_dir = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt6/SBAS_SMOOTH_0.0000e+00/INT3/" # Lorax
     file_type = "LOS_*_INT3.grd"
     # file_type = "LOS_20190709_INT3.grd"
     outdir = 'preview'
@@ -108,6 +109,8 @@ def make_plots(xdata, ydata, data_all, outdir, num_plots_x, num_plots_y, titles)
 
                     # The actual plotting
                     axarr[k][m].imshow(data_all[count], cmap='jet', aspect=0.75)
+                    plt.colorbar()
+
                     axarr[k][m].invert_yaxis()
                     axarr[k][m].invert_xaxis()
                     axarr[k][m].get_xaxis().set_ticks([])
@@ -117,12 +120,18 @@ def make_plots(xdata, ydata, data_all, outdir, num_plots_x, num_plots_y, titles)
                     print(titles[count])
 
                     count = count + 1
+            
             plt.savefig("time-series-1.eps")
             # plt.show()
             plt.close()
 
     return
 
+def insar_panels(xdata, ydata, data_all, outdir, num_plots_x, num_plots_y, titles):
+
+
+
+    
 
 if __name__ == "__main__":
     top_level_driver()
