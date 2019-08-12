@@ -1,7 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import datetime as dt
-
+import collections
+import netcdf_read_write
+import glob
 
 def get_date_from_xml(xml_name):
     """
@@ -11,6 +13,7 @@ def get_date_from_xml(xml_name):
     xml_name = xml_name.split('/')[-1]
     mydate = xml_name[15:23];
     return mydate
+
 
 
 def getDatesFromList(fileName, fileType, numDates):
@@ -71,6 +74,7 @@ def getDatesFromList(fileName, fileType, numDates):
         print("List must be SAFE directory names")
 
 
+
 def plotSceneDates(dateList1, dateList2, xLabelList):
     dates1, dates2 = [], []
 
@@ -95,6 +99,7 @@ def plotSceneDates(dateList1, dateList2, xLabelList):
     # ax.set_aspect(aspect=0.2)
 
 
+
 def checkItems(listIn, listSearch):
     listOut = []
     for item in listIn:
@@ -108,6 +113,7 @@ def checkItems(listIn, listSearch):
             newFile.write("%s\n" % line)
 
     return listOut
+
 
 
 def rename_intf_in(intf_in, swath):
@@ -124,7 +130,54 @@ def rename_intf_in(intf_in, swath):
 
     return new_list
 
+
+
+def readGRD(file_type):
+    # Read in SAR data from .grd formatted file
+    # INPUT FILES MUST BE LOCATED IN A GMTSAR DIRECTORY!
+    # Path_list format:
+    #   20170426_20170520/corr.grd
+    #   20170426_20170601/corr.grd
+    #   20170426_20170613/corr.grd
+    #   ...
+
+    # Get list of file paths
+    path_list = glob.glob("*/" + file_type)
+
+    print('Number of files to read: ' + str(len(path_list)))
+    # Establish tuple
+    tupleGRD = collections.namedtuple('GRD_data', ['path_list', 'xdata', 'ydata', 'zdata'])
+
+    # Get dimensional data
+    try:
+        [xdata, ydata] = netcdf_read_write.read_grd_xy(path_list[0])  # can read either netcdf3 or netcdf4.
+    except TypeError:
+        [xdata, ydata] = netcdf_read_write.read_netcdf4_xy(path_list[0])
+
+    # Loop through path_list to read in target datafiles
+    zdata = []
+    date_pairs = []
+    i = 0
+    for file in path_list:
+        try:
+            data = netcdf_read_write.read_grd(file)
+        except TypeError:
+            data = netcdf_read_write.read_netcdf4(file)
+
+        zdata.append(data)
+        pairname = file.split('/')[-2][0:19];
+        date_pairs.append(pairname)  # returning something like '2016292_2016316' for each intf
+
+        if i == floor(len(path_list)/2):
+            print('Halfway done reading...')
+
+    myData = tupleGRD(path_list=np.array(path_list), xdata=np.array(xdata), ydata=np.array(ydata), zdata=np.array(zdata))
+
+    return myData
+
+
+
 if __name__ == "__main__":
-    new_names = rename_intf_in('test_rename', 'F2')
+    readGRD('corr.grd')
 
 

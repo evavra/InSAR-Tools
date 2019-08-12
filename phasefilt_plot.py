@@ -18,13 +18,13 @@ def top_level_driver(skip_file=[]):
 
 # ------------- CONFIGURE ------------ #
 def configure():
-    file_dir = "intf_all"
-    file_type = "phasefilt.grd"
-    outdir = 'phasefilt/'
+    file_dir = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/SBAS_SMOOTH_0.0000e+00/"
+    file_type = "LOS*INT3.grd"
+    outdir = '/Users/ellisvavra/Thesis/insar/des/f2/intf_all/SBAS_SMOOTH_0.0000e+00/NSBAS_preview'
 
     subprocess.call(['mkdir', '-p', outdir], shell=False)
 
-    file_names = glob.glob(file_dir + "/*/" + file_type)
+    file_names = glob.glob(file_dir + file_type)
     if len(file_names) == 0:
         print("Error! No files matching search pattern.")
         sys.exit(1)
@@ -74,7 +74,7 @@ def make_plots(xdata, ydata, data_all, date_pairs, outdir, num_plots_x, num_plot
             fignum = i / (num_plots_y * num_plots_x)  # counting figures up 0 to 1 to 2....
 
             # Looping forward and plotting the next 12 plots...
-            f, axarr = plt.subplots(num_plots_y, num_plots_x, figsize=(10, 10))
+            f, axarr = plt.subplots(num_plots_y, num_plots_x, figsize=(20, 15))
             for k in range(num_plots_y):
                 for m in range(num_plots_x):
                     if count == len(data_all):

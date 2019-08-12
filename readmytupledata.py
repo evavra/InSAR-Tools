@@ -20,6 +20,9 @@ def reader(filepathslist):
         print(filepathslist[i])
         filepaths.append(filepathslist[i])
         datesplit = filepathslist[i].split('/')
+
+        print(datesplit)
+
         date_new = datesplit[-2].replace(datesplit[-2][0:7], str(int(datesplit[-2][0:7]) + 1))
         date_new = date_new.replace(date_new[8:15], str(int(date_new[8:15]) + 1))
         dates_correct.append(date_new)
