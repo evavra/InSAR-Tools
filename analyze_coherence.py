@@ -31,12 +31,14 @@ def driver():
     stage = 'GMTSAR'                                                # 'GMTSAR' for GMTSAR formatted directories, 'CANDIS' for CANDIS formatted directories
     level = 1                                                       # 1 for same directory as interferogram directories, 2 for directory above home diretory for intf directories
     calc_means = 'no'                                               # 'yes' if mean interferometric coherence needs to be calculated using GMT; '2' if mean_corr.grd already exists
+    calc_std = 'no'
+    calc_sigma = 'yes'
     intf_table = 'intf_table.dat'
     corr_min = 0.20                                                 # Min. coherence threshold for intfs going into NSBAS
     corr_max = 1.00                                                 # Max. coherence threshold for intfs going into NSBAS (usually 1.0)
     max_count = 12                                                  # Set maximum number of interferograms to be used in common scene stacking (n most coherent pairs)
 
-    output_list_name = 'coherent.0.20'
+    output_list_name = 'new_intfs_08282019'
     filt_intf_table = 'selected_table_new.dat'
 
     NSBAS_list_GMTSAR = 'intfs_for_CANDIS.GMTSAR'
@@ -54,6 +56,9 @@ def driver():
 
         # Calulate means
         means = getMeans(path_list, area, filetype, calc_means)
+
+        # Calulate standard deviation
+        sigma1, sigma2, sigma3 = getSigma(path_list, area, filetype, calc_sigma)
 
         # Write data to interferogram tuple
         iTuple = intfTuple(path_list, means, baseline_table, filetype, stage, level)
@@ -75,6 +80,14 @@ def driver():
 
         # Plot interferogram coherence distribution
         plotCorrHist(iTuple)
+
+        # Plot sigma
+        plotSigmaHist(sigma1, 1)
+        plotSigmaHist(sigma2, 2)
+        plotSigmaHist(sigma3, 3)
+
+        plotIntfCoherenceBounds(iTuple, baseline_table, filetype, stage, sigma_n)
+
 
     elif step == 2:
     # 2. Work from intf_table.dat to test threshold cmin
@@ -114,6 +127,7 @@ def driver():
 
         # Plot interferogram coherence histogram
         plotCorrHist(iTuple)
+
 
 
 # -------------------------------- CONFIGURE -------------------------------- #
@@ -248,6 +262,11 @@ def getMeans(path_list, area, filetype, calc_means):
     # Use GMT to calculate means of .grd files
     means = []
 
+    print()
+    print()
+    print()
+    print('Calculating means...')
+
     for path in path_list:
         # Calulate mean and save to temporary file
         newFilePath = path[0:(len(path) - len(filetype))] + "mean_corr.grd"
@@ -272,6 +291,51 @@ def getMeans(path_list, area, filetype, calc_means):
             print(path + ": " + str(mean_value))
 
     return means
+
+
+def getSigma(path_list, area, filetype, calc_sigma):
+    # Use GMT to calculate n-sigma of .grd files
+    sigma1 = []
+    sigma2 = []
+    sigma3 = []
+
+    print()
+    print()
+    print()
+    print('Calculating sigmas...')
+
+    
+    for path in path_list:
+        # Calulate standard deviation and save to temporary file
+        newFilePath = path[0:(len(path) - len(filetype))] + "std_corr.grd"
+
+        if calc_sigma == 'yes':
+            subprocess.call("gmt grdmath " + path + " STD = " + newFilePath, shell=True)
+             # Extract standard deviation
+            sigma_value = float(subprocess.check_output("gmt grdinfo " + newFilePath + " | grep z_min | awk '{print $3}'", shell=True))
+
+            # Add to std list
+            sigma1.append(sigma_value)
+            sigma2.append(sigma_value * 2)
+            sigma3.append(sigma_value * 3)
+            print(path + ": " + str(sigma_value))
+
+
+        elif calc_sigma == 'no':
+            # print('Reading in std coherence values... ')
+            # Extract std
+            sigma_value = float(subprocess.check_output("gmt grdinfo " + newFilePath + " | grep z_min | awk '{print $3}'", shell=True))
+
+            # Add to std list
+            sigma1.append(sigma_value)
+            sigma2.append(sigma_value * 2)
+            sigma3.append(sigma_value * 3)
+            print(path + ": " + str(sigma_value))
+
+    return sigma1, sigma2, sigma3
+
+
+
 
 
 def count(iTuple):
@@ -309,7 +373,7 @@ def count(iTuple):
     print('Number of times used:')
     for date in scene_dates:
         date_sums.append(all_dates.count(date))
-        print(date.strftime("%Y-%m-%d") + ": " + str(date_sums[-1]))
+        print(date.strftime("%Y%m%d") + " " + str(date_sums[-1]))
     print()
 
     return scene_dates, date_sums
@@ -666,6 +730,50 @@ def plotCorrHist(iTuple):
 
     plt.show()
 
+
+def plotSigmaHist(sigma_n, n):
+
+    # Establish figure
+    fig, ax = plt.subplots()
+
+    plt.hist(sigma_n, bins=100)
+
+    # Figure features
+    plt.grid(axis='x', zorder=1)
+    plt.xlabel(str(n) + '-sigma of coherence')
+    plt.ylabel('Number of interferograms')
+
+    plt.show()
+
+
+def plotIntfCoherenceBounds(iTuple, baseline_table, filetype, stage, sigma_n):
+    # Read in data data
+
+    # Establish figure
+    fig, ax = plt.subplots()
+
+    # Get range of baseline lengths
+    baseline_range = list(range(0, int(math.floor(max(iTuple.orbital_baseline)))))
+    print('Baseline range = 0-' + str(math.floor(max(iTuple.orbital_baseline))) + 'm')
+    n = len(baseline_range)  # Number of colors
+    viridis = cm.get_cmap('viridis', n)
+    print(viridis)
+
+    for i in range(len(iTuple.mean_coherence)):
+        # Get color coefficient
+        line_color = np.floor(iTuple.orbital_baseline[i]) / n
+        print(line_color)
+
+        plt.plot([iTuple.date1[i], iTuple.date2[i]], [iTuple.mean_coherence[i] - sigma_n[i], iTuple.mean_coherence[i] - sigma_n[i]], zorder=3, color=viridis(line_color))
+
+    # Figure features
+    plt.grid(axis='x', zorder=1)
+    plt.xlim(min(iTuple.date1, default=dt.datetime.strptime('20141201', "%Y%m%d")) - dt.timedelta(days=5), max(iTuple.date2, default=dt.datetime.strptime('20190901', "%Y%m%d")) + dt.timedelta(days=5))
+    plt.ylim(0, np.ceil(max(iTuple.mean_coherence)*10)/10)
+    plt.xlabel('Date')
+    plt.ylabel('Mean coherence')
+
+    plt.show()
 
 if __name__ == "__main__":
     driver()

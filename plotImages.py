@@ -10,17 +10,17 @@ import numpy as np
 
 def topLevelDriver():
     fileList, outdir = configure()
-    makePlots(fileList, outdir, 10)
+    makePlots(fileList, outdir, 1)
     subprocess.call(['open', outdir], shell=False)
 
 def configure():
-    file_dir = 'data'
-    file_type = 'preview/quick-look.png'
+    file_dir = '/Users/ellisvavra/Thesis/insar/des/f2/intf_all/SBAS_SMOOTH_0.0000e+00/'
+    file_type = 'LOS_20190709_INT3.grd'
     outdir = 'Preview_Summary'
 
     subprocess.call(['mkdir', '-p', outdir], shell=False)
 
-    fileList = glob.glob(file_dir + "/*/" + file_type)
+    fileList = glob.glob(file_dir + file_type)
 
 
     if len(fileList) == 0:
@@ -53,7 +53,7 @@ def makePlots(fileList, outdir, numPlots):
         for i in range(len(newList)):
             image = img.imread(newList[i])
             plt.subplot(2,numPlots/2,i+1)
-            plt.title(newList[i][5:8] + "*" + newList[i][22:30] + "*" + newList[i][68:77])
+           # plt.title(newList[i][5:8] + "*" + newList[i][22:30] + "*" + newList[i][68:77])
             plt.imshow(image)
 
         plt.savefig(outdir + "/selected_data_" + str(int(h+1)) + ".eps")

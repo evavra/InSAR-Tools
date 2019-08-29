@@ -6,6 +6,7 @@ import datetime as dt
 import subprocess
 import netcdf_read_write
 from mpl_toolkits.axes_grid1 import AxesGrid
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # Original version by Kathryn Materna
 # Modified by Ellis Vavra
@@ -25,9 +26,9 @@ def top_level_driver():
 
 # ------------- CONFIGURE ------------ #
 def configure():
-    file_dir = "/Users/ellisvavra/Desktop/Thesis/S1_Processing/NSBAS/INT3/"  # Laptop
-    # file_dir = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt6/SBAS_SMOOTH_0.0000e+00/INT3/"  # Lorax
-    file_type = "LOS_*_INT3.grd"
+    # file_dir = "/Users/ellisvavra/Desktop/Thesis/S1_Processing/NSBAS/INT3/"  # Laptop
+    file_dir = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt6/SBAS_SMOOTH_0.0000e+00/INT3/"  # Lorax
+    file_type = "LOS_2018*_INT3.grd"
     # file_type = "LOS_20190709_INT3.grd"
     outdir = 'preview'
 
@@ -134,7 +135,7 @@ def insar_panels(xdata, ydata, data_all, outdir, num_plots_x, num_plots_y, title
                     axes_pad=0.05,
                     cbar_mode='single',
                     cbar_location='right',
-                    cbar_pad=0.1
+                    cbar_pad=0.2
                     )
 
     print('Number of files: ' + str(len(data_all)))
@@ -152,15 +153,32 @@ def insar_panels(xdata, ydata, data_all, outdir, num_plots_x, num_plots_y, title
         print(titles[count])
         count += 1
 
+
+
+
+    # divider = make_axes_locatable(ax)
+    # cax = divider.append_axes("right", size="1%", pad=0.05)
+
+    # plt.colorbar(im, cax=cax)
+
     # when cbar_mode is 'single', for ax in grid, ax.cax = grid.cbar_axes[0]
+
+
+    # cbar_axis = plt.axis([0.09, 0.06, 0.84, 0.02])
+
+
+
+    # cbar = grid.cbar_axes[0].colorbar(im, cax=cax)
+
     cbar = ax.cax.colorbar(im)
-    cbar = grid.cbar_axes[0].colorbar(im)
+    # cbar = grid.cbar_axes[0].colorbar(im)
+
 
     # cbar.ax.set_yticks(np.arange(0, 1.1, 0.5))
     # cbar.ax.set_yticklabels(['low', 'medium', 'high'])
 
-    # plt.show()
-    plt.savefig("time-series.eps")
+    plt.show()
+    # plt.savefig("time-series.eps")
 
 
 if __name__ == "__main__":

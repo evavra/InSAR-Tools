@@ -12,49 +12,57 @@ import glob as glob
 def driver():
     baseline_table = 'baseline_table.dat'
     scene_corr = 'scene_coherence.dat'
-    # scene_corr = 'scene_coherence.dat'
-    tmin = 670
-    tmax = 790
-    bmax = 100
+    tmin = 0
+    tmax = 395
+    bmax = 50
     cmin = 0.15
+    stack_min = 4
     # datemin = '20170707'
     # datemax = '20171104'
     satellite = 1
     swath = 2
-    new_list_all = 'intf.in.670-790d.100m.0.15'
-    new_list_new = 'intf.in.670-790d.100m.0.15.new'
-    old_list = 'intf.in.current_08082019'
+    new_list_all = ''
+    new_list_new = 'intfs_to_append'
+    old_list = 'attempted_intfs_08232019'
+    good_intfs_counts = 'good_intfs.count'              # List of scenes to be used in time-series (including new additions) and the number of interferograms each scene is used in 
 
+
+    
     # Read in scene data from baseline_table.dat and scene_coherence.dat
     orbit, dates, jday, blpara, blperp, datelabels = readBaselineTable(baseline_table)
 
-    with open(scene_corr, 'r') as file:
-        corr_list = []
-        for line in file:
-            corr_list.append(float(line[:-1]))
-            print(corr_list[-1])
+    
+    # with open(scene_corr, 'r') as file:
+    #     corr_list = []
+    #     for line in file:
+    #         corr_list.append(float(line[:-1]))
+    #         print(corr_list[-1])
 
 
-    # Make pairs, save to output_filename1
-    intf_list, updated_intf_in_dates, updated_intf_in_SLCs = makePairs(dates, blperp, corr_list, tmin, tmax, bmax, cmin, satellite, swath, new_list_all)
+    # # Make pairs, save to output_filename1
+    # intf_list, updated_intf_in_dates, updated_intf_in_SLCs = makePairs(dates, blperp, corr_list, tmin, tmax, bmax, cmin, satellite, swath, new_list_all)
     
     # Read in old intf_in
     getListfromDir('/Users/ellisvavra/Thesis/insar/des/f2/intf_all/20*_20*', 1, 2, 'intf.in.pre07302019')
     old_intf_in = readIntfList(old_list, 'SLCs')
 
+    # # Cross-reference new intf_in with 
+    # new_intf_in = crossRefList(updated_intf_in_SLCs, old_intf_in, new_list_new)
+    
+    # # noisy_intfs = readIntfList("noisy_intfs_all.txt", 'date_pairs')
+
+    # print("Number of interferograms: " + str(len(intf_list)))
+    # print("Number of new interferograms: " + str(len(new_intf_in)))
+    # # print("Number of noisy interferograms: " + str(len(noisy_intfs)))
+
+    # plotBaselineTable(dates, blperp, intf_list, [])
+    # # plotIntfDist(dates, c, [])
+    
+    scenes, count = readCounts(good_intfs_counts)
+    intf_list, intf_in_dates, intf_in_SLCs = appendPairs(dates, blperp, tmin, tmax, bmax, stack_min, scenes, count, satellite, swath, 'test.append_ts')
+
     # Cross-reference new intf_in with 
-    new_intf_in = crossRefList(updated_intf_in_SLCs, old_intf_in, new_list_new)
-    
-    # noisy_intfs = readIntfList("noisy_intfs_all.txt", 'date_pairs')
-
-    print("Number of interferograms: " + str(len(intf_list)))
-    print("Number of new interferograms: " + str(len(new_intf_in)))
-    # print("Number of noisy interferograms: " + str(len(noisy_intfs)))
-
-    plotBaselineTable(dates, blperp, intf_list, [])
-    # plotIntfDist(dates, c, [])
-
-    
+    new_intf_in = crossRefList(intf_in_SLCs, old_intf_in, new_list_new)
 
 # -------------------------------- CONFIGURE -------------------------------- #
 
@@ -114,7 +122,18 @@ def readBaselineTable(baseline_table):
     return orbit, dates, jday, blpara, blperp, datelabels
 
 
-# # -------------------------------- INPUTS -------------------------------- #
+def readCounts(good_intfs_list):
+    scenes = []
+    counts = []
+    with open(good_intfs_list, 'r') as good_intfs:
+        for line in good_intfs:
+            scenes.append(line.split()[0])
+            counts.append(int(line.split()[1]))
+            print(line[:-1])
+
+    return scenes, counts
+
+# -------------------------------- INPUTS -------------------------------- #
 
 def makePairs(dates, blperp, scene_corr, tmin, tmax, bmax, cmin, satellite, swath, output_filename):
 
@@ -150,13 +169,14 @@ def makePairs(dates, blperp, scene_corr, tmin, tmax, bmax, cmin, satellite, swat
     print('Writing new intf.in...')
     print()
     print('Pairs:')
+
     with open(output_filename, 'w') as newList:
         for pair in intf_in_dates:
             # print(pair)
             print("S" + str(satellite) + '_' + pair[0:8] + '_ALL_F' + str(swath) + ':' + "S" + str(satellite) + '_' + pair[9:17] + '_ALL_F' + str(swath) + '\n')
             newList.write("S" + str(satellite) + '_' + pair[0:8] + '_ALL_F' + str(swath) + ':' + "S" + str(satellite) + '_' + pair[9:17] + '_ALL_F' + str(swath) + '\n')
             intf_in_SLCs.append("S" + str(satellite) + '_' + pair[0:8] + '_ALL_F' + str(swath) + ':' + "S" + str(satellite) + '_' + pair[9:17] + '_ALL_F' + str(swath))
-            
+
         print()
         print('New file:')
         print(newList)
@@ -180,10 +200,11 @@ def crossRefList(new_list, old_list, output_filename):
 
         for line in listOut:
             newFile.write("%s\n" % line)
+            print(line)
 
     print()
-    # print("Number of new interferograms: " + str(len(listOut)))
-    print(listOut)
+    print("Number of new interferograms: " + str(len(listOut)))
+    
     return listOut
 
 
@@ -218,6 +239,68 @@ def getListfromDir(search_str, swath, satellite, output_filename):
         # print('Pairs:')
         print(newList)
 
+
+def appendPairs(dates, blperp, tmin, tmax, bmax, stack_min, scenes, count, satellite, swath, output_filename):
+    
+    # First we need to get selected baseline info for the dates to be used in the timeseries
+    new_blperp = []
+    for i in range(len(dates)):
+        if dates[i].strftime('%Y%m%d') in scenes:
+            new_blperp.append(blperp[i])
+
+    # For every scene in time series
+    intf_list = []
+    intf_in_dates = []
+    intf_in_SLCs = []
+
+    for i in range(len(scenes)):
+        # If count is less than minimum stacking threshold, make more intfs
+        if count[i] < stack_min:
+            # For each scene under threshold, test all possible pairs under given thresholds
+            for j in range(len(scenes)):
+                # But don't let it try to pair with itself
+                if i != j:
+                    # Compute perpendicular (B_p) and temporal (B_t) baselines for pair
+                    B_p = abs(new_blperp[i] - new_blperp[j])
+                    B_t = abs(dt.datetime.strptime(scenes[i], '%Y%m%d') - dt.datetime.strptime(scenes[j], '%Y%m%d'))
+
+                    # Check if pair meets baseline criteria
+                    # Add pair to intf_list if it meets the input B_p and B_t thresholds
+                    if B_p <= bmax and B_t.days >= tmin and B_t.days <= tmax and scenes[i] + "_" + scenes[j] not in intf_in_dates and scenes[j] + "_" + scenes[i] not in intf_in_dates:
+
+                        if i < j:
+                            print(scenes[i]  + "_" + scenes[j]  + ": " + str(round(B_p, 3)) + "m (" + str(B_t.days) + " days)")
+                            intf_list.append([i, j])
+                            intf_in_dates.append(scenes[i] + "_" + scenes[j])
+
+                        else:
+                            print(scenes[j]  + "_" + scenes[i]  + ": " + str(round(B_p, 3)) + "m (" + str(B_t.days) + " days)")
+                            intf_list.append([i, j])
+                            intf_in_dates.append(scenes[j] + "_" + scenes[i])
+
+
+    # Write new append.intf.in in following format:
+    #   S1_20180508_ALL_F1:S1_20180514_ALL_F1
+    print()
+    print('Writing new append.intf.in...')
+    print()
+    print('Pairs:')
+
+    with open(output_filename, 'w') as newList:
+        for pair in intf_in_dates:
+            print("S" + str(satellite) + '_' + pair[0:8] + '_ALL_F' + str(swath) + ':' + "S" + str(satellite) + '_' + pair[9:17] + '_ALL_F' + str(swath))
+            newList.write("S" + str(satellite) + '_' + pair[0:8] + '_ALL_F' + str(swath) + ':' + "S" + str(satellite) + '_' + pair[9:17] + '_ALL_F' + str(swath) + '\n')
+            intf_in_SLCs.append("S" + str(satellite) + '_' + pair[0:8] + '_ALL_F' + str(swath) + ':' + "S" + str(satellite) + '_' + pair[9:17] + '_ALL_F' + str(swath))
+
+        print()
+        print('New file:')
+        print(newList)
+
+    print()
+    print("Number of new interferograms: " + str(len(intf_list)))
+    print()
+
+    return intf_list, intf_in_dates, intf_in_SLCs
 
 
 # -------------------------------- OUTPUT -------------------------------- #
