@@ -32,18 +32,19 @@ def driver():
     level = 1                                                       # 1 for same directory as interferogram directories, 2 for directory above home diretory for intf directories
     calc_means = 'no'                                               # 'yes' if mean interferometric coherence needs to be calculated using GMT; '2' if mean_corr.grd already exists
     calc_std = 'no'
-    calc_sigma = 'yes'
-    intf_table = 'intf_table.dat'
+    calc_sigma = 'no'
+    intf_table = 'intf_table_caldera.dat'
     corr_min = 0.20                                                 # Min. coherence threshold for intfs going into NSBAS
     corr_max = 1.00                                                 # Max. coherence threshold for intfs going into NSBAS (usually 1.0)
     max_count = 12                                                  # Set maximum number of interferograms to be used in common scene stacking (n most coherent pairs)
 
-    output_list_name = 'new_intfs_08282019'
-    filt_intf_table = 'selected_table_new.dat'
+    outFileName = 'caldera_corr.grd'
+    outListName = 'new_intfs_09252019'
+    filt_intf_table = 'selected_table_09252019.dat'
 
-    NSBAS_list_GMTSAR = 'intfs_for_CANDIS.GMTSAR'
-    NSBAS_list_CANDIS = 'intfs_for_CANDIS.CANDIS'
-    NSBAS_table = 'intfs_for_CANDIS.dat'
+    NSBAS_list_GMTSAR = 'intfs_for_CANDIS_09252019.GMTSAR'
+    NSBAS_list_CANDIS = 'intfs_for_CANDIS_09252019.CANDIS'
+    NSBAS_table = 'intfs_for_CANDIS_09252019.dat'
 
     # step = 1                                                        # 1. Do original mean calculation, make intf_table.dat, make plots
     step = 2                                                        # 2. Work from intf_table.dat to test threshold cmin
@@ -55,10 +56,10 @@ def driver():
         path_list = getPaths(homedir, filetype)
 
         # Calulate means
-        means = getMeans(path_list, area, filetype, calc_means)
+        means = getMeans(path_list, area, filetype, outFileName, calc_means)
 
         # Calulate standard deviation
-        sigma1, sigma2, sigma3 = getSigma(path_list, area, filetype, calc_sigma)
+        # sigma1, sigma2, sigma3 = getSigma(path_list, area, filetype, calc_sigma)
 
         # Write data to interferogram tuple
         iTuple = intfTuple(path_list, means, baseline_table, filetype, stage, level)
@@ -82,9 +83,9 @@ def driver():
         plotCorrHist(iTuple)
 
         # Plot sigma
-        plotSigmaHist(sigma1, 1)
-        plotSigmaHist(sigma2, 2)
-        plotSigmaHist(sigma3, 3)
+        # plotSigmaHist(sigma1, 1)
+        # plotSigmaHist(sigma2, 2)
+        # plotSigmaHist(sigma3, 3)
 
         plotIntfCoherenceBounds(iTuple, baseline_table, filetype, stage, sigma_n)
 
@@ -96,10 +97,10 @@ def driver():
         iTuple = readIntfTable(intf_table)
 
         # Filter intferogram list based off of coherence
-        intf_list, new_intf_table = sortFromCorr(iTuple, corr_min, corr_max, intf_table, output_list_name, filt_intf_table)
+        intf_list, new_intf_table = sortFromCorr(iTuple, corr_min, corr_max, intf_table, outListName, filt_intf_table)
         
         # Write filtered list to file
-        writeIntfList(intf_list, output_list_name)
+        writeIntfList(intf_list, outListName)
 
         # RELOAD ITUPLE WITH COHERENCE-FILTERED DATASET
         iTuple = readIntfTable(filt_intf_table)
@@ -185,8 +186,13 @@ def intfTuple(path_list, means, baseline_table, filetype, dir_type, level):
 
             # Script run in same directory as interferogram directories 
             if level == 1: 
-                print('Searching: ' + line[(-16 - len(filetype)): (-len(filetype) - 1)] + "/*SLC")
-                SLCs = glob.glob(line[(-16 - len(filetype)): (-len(filetype) - 1)] + "/*SLC")     
+                try:
+                    print('Searching: ' + line[(-16 - len(filetype)): (-len(filetype) - 1)] + "/*SLC")
+                    SLCs = glob.glob(line[(-16 - len(filetype)): (-len(filetype) - 1)] + "/*SLC")   
+                except IndexError:
+                    print('Searching: ' + line[(-16 - len(filetype)): (-len(filetype) - 1)] + "/*SLC")
+                    SLCs = glob.glob(line[(-16 - len(filetype)): (-len(filetype) - 1)] + "/*SLC")   
+
 
             # Or if script is run in directory above interferogram directories 
             elif level == 2:
@@ -258,7 +264,7 @@ def intfTuple(path_list, means, baseline_table, filetype, dir_type, level):
 
 # -------------------------------- ANALYSIS -------------------------------- #
 
-def getMeans(path_list, area, filetype, calc_means):
+def getMeans(path_list, area, filetype, outputName, calc_means):
     # Use GMT to calculate means of .grd files
     means = []
 
@@ -269,10 +275,10 @@ def getMeans(path_list, area, filetype, calc_means):
 
     for path in path_list:
         # Calulate mean and save to temporary file
-        newFilePath = path[0:(len(path) - len(filetype))] + "mean_corr.grd"
+        newFilePath = path[0:(len(path) - len(filetype))] + outputName
 
         if calc_means == 'yes':
-            subprocess.call("gmt grdmath " + path + " MEAN = " + newFilePath, shell=True)
+            subprocess.call("gmt grdmath " + path + " -R" + str(area[0]) + "/" + str(area[1]) + "/" + str(area[2]) + "/" + str(area[3]) + " MEAN = " + newFilePath, shell=True)
              # Extract mean
             mean_value = float(subprocess.check_output("gmt grdinfo " + newFilePath + " | grep z_min | awk '{print $3}'", shell=True))
 
@@ -333,9 +339,6 @@ def getSigma(path_list, area, filetype, calc_sigma):
             print(path + ": " + str(sigma_value))
 
     return sigma1, sigma2, sigma3
-
-
-
 
 
 def count(iTuple):
@@ -445,7 +448,7 @@ def sceneCorr(iTuple):
     return scene_dates, mean_scene_coherence
 
 
-def sortFromCorr(iTuple, corr_min, corr_max, intf_table, output_list_name, output_table_name):
+def sortFromCorr(iTuple, corr_min, corr_max, intf_table, outListName, output_table_name):
     # Find indicies of all interferograms who meet the minimum coherence threshold
     intf_list = []
 

@@ -78,7 +78,7 @@ def readIntfList(filename, list_type):
     if list_type == 'date_pairs':
         for line in str_list:
             output_list.append([dt.datetime.strptime(line[0:8], "%Y%m%d"), dt.datetime.strptime(line[9:17], "%Y%m%d")])
-            print(line)
+            # print(line)
 
         # print(output_list)
 
@@ -87,7 +87,7 @@ def readIntfList(filename, list_type):
 
         for intf in str_list:
             output_list.append(intf[:-1])
-            print(intf[:-1])
+            # print(intf[:-1])
 
         # print(output_list)
 
