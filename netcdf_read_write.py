@@ -1,6 +1,10 @@
 # Netcdf reading and writing functions
 # Bring a netcdf3 file into python!
 
+# Written by Kathryn Materna
+# Modified by Ellis Vavra 
+# Last update: 09/10/2019
+
 import numpy as np
 import scipy.io.netcdf as netcdf
 import matplotlib.pyplot as plt
@@ -82,7 +86,7 @@ def read_netcdf4_variables(filename, var1, var2, var3):
     netcdf4file = filename
     netcdf3file = filename + 'nc3'
     subprocess.call('nccopy -k classic ' + netcdf4file + ' ' + netcdf3file, shell=True)
-    [xdata, ydata, zdata] = read_grd_variables(filename, var1, var2, var3)
+    [xdata, ydata, zdata] = read_grd_variables(filename + 'nc3', var1, var2, var3)
     return [xdata, ydata, zdata]
 
 
