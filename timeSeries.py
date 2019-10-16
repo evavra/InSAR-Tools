@@ -5,11 +5,13 @@ import sys
 import datetime as dt
 import subprocess
 import netcdf_read_write
-from mpl_toolkits.axes_grid1 import AxesGrid
+from mpl_toolkits.axes_grid1 import ImageGrid
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import math
 import utilities_GPS
 from readGRD import readInSAR
+import insarPlots
+import seismoPlots
 
 # Original version by Kathryn Materna
 # Modified by Ellis Vavra
@@ -18,100 +20,328 @@ from readGRD import readInSAR
 # ------------------------- DRIVER ------------------------- 
 
 def driver():
+    pointTimeSeries()
+
+# ------------------------- CONFIGURE ------------------------- 
+
+def panels():
+
+    # GENERATE INSAR PANELS AND POINT TIME SERIES 
+
+    # -- INPUT --------------------------------------------------------------------------------------
+    # Files
+    fileDir = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Geocoding/Attempt15/"
+    fileType = "LOS_*_INT3_ll.grd"
+    outDir = '/Users/ellisvavra/Thesis/analysis/Figures/'
+
+    """
+    # Master
+    dateList = ['20141108',
+                '20141202',
+                '20150308',
+                '20150401',
+                '20150519',
+                '20150612',
+                '20150706',
+                '20150730',
+                '20150823',
+                '20150916',
+                '20151010',
+                '20160326',
+                '20160419',
+                '20160513',
+                '20160606',
+                '20160630',
+                '20160724',
+                '20160817',
+                '20160910',
+                '20161004',
+                '20161121',
+                '20161215',
+
+                '20170402',
+                '20170426',
+                '20170508',
+                '20170520',
+                '20170601',
+                '20170613',
+                '20170625',
+                '20170707',
+                '20170719',
+                '20170731',
+                '20170812',
+                '20170824',
+                '20170905',
+                '20170917',
+                '20170929',
+                '20171011',
+                '20171023',
+                '20171104',
+                '20171116',
+                '20171128',
+                '20171210',
+                '20171222',
+
+                '20180103',
+                '20180115',
+                '20180127',
+                '20180208',
+                '20180220',
+                '20180316',
+                '20180328',
+                '20180409',
+                '20180421',
+                '20180503',
+                '20180515',
+                '20180527',
+                '20180608',
+                '20180620',
+                '20180702',
+                '20180714',
+                '20180726',
+                '20180807',
+                '20180819',
+                '20180831',
+                '20180912',
+                '20180924',
+                '20181006',
+                '20181018',
+                '20181030',
+                '20181111',
+
+                '20190603',
+                '20190615',
+                '20190627',
+                '20190709',
+                '20190721']
+                '20190802' ]
+    """
+
+    dateList = ['20141108',
+                # '20141202',
+
+                # '20150308',
+                # '20150401',
+                # '20150519',
+                '20150612',
+                # '20150706',
+                # '20150730',
+                # '20150823',
+                # '20150916',
+                '20151010',
+                # '20160326',
+                # '20160419',
+                '20160513',
+                # '20160606',
+                # '20160630',
+                # '20160724',
+                # '20160817',
+                # '20160910',
+                # '20161004',
+                '20161121',
+                '20161215',
+
+                '20170402',
+                # '20170426',
+                # '20170508',
+                '20170520',
+                # '20170601',
+                # '20170613',
+                # '20170625',
+                # '20170707',
+                # '20170719',
+                # '20170731',
+                # '20170812',
+                # '20170824',
+                # '20170905',
+                # '20170917',
+                # '20170929',
+                # '20171011',
+                # '20171023',
+                '20171104',
+                # '20171116',
+                # '20171128',
+                # '20171210',
+                # '20171222',
+
+                # '20180103',
+                # '20180115',
+                # '20180127',
+                # '20180208',
+                # '20180220',
+                # '20180316',
+                # '20180328',
+                # '20180409',
+                # '20180421',
+                # '20180503',
+                '20180515',
+                # '20180527',
+                # '20180608',
+                # '20180620',
+                # '20180702',
+                # '20180714',
+                # '20180726',
+                # '20180807',
+                # '20180819',
+                # '20180831',
+                # '20180912',
+                # '20180924',
+                # '20181006',
+                # '20181018',
+                # '20181030',
+                '20181111',
+
+                # '20190603',
+                # '20190615',
+                # '20190627',
+                # '20190709',
+                '20190721']
+                # '20190802' ]
+    outputName = "panels_all_geocoded_Attempt15_features.eps"
+    save = 'yes'
+
+    # Figure settings
+    num_plots_x = 13
+    num_plots_y = 6
+    colors = 'jet'
+    track = 'des'
+    subFigID = 111
+
+    # -- EXECUTE --------------------------------------------------------------------------------------
+    # Get list of filenames
+    fileNames = getFileNames(fileDir, fileType)
+
+    # OR specify list of dates to read be in 
+    # fileNames = specifyDateList(fileDir, dateList)
+
+    # Extract data
+    [xdata, ydata, zCube, dates] = readStack(fileNames)
+
+    # Plot InSAR time-series panels
+    # insarPanels(xdata, ydata, zCube, num_plots_x, num_plots_y, titles, colors, fileDir, outputName, save)
+    insarPanels(xdata, ydata, zCube, num_plots_x, num_plots_y, dates, colors, outDir, outputName, save, track, subFigID)
 
 
-    # # ------------------------- GENERATE INSAR PANELS AND POINT TIME SERIES -------------------------
-    # # -- INPUT --------------------------------------------------------------------------------------
-    # # Files
-    # fileDir = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt15-Cmin-0.20/SBAS_SMOOTH_0.0000e+00/"  # Lorax
-    # fileType = "LOS_*_INT3.grd"
+def pointTimeSeries():
 
-    # output_name = "panels_Attempt15.eps"
-    # output_name_ts = "ts_P650_Attempt15.eps"
-    # output_name_swath = ""
-    # output_name_compare = "InSAR-RDOM-Attempt15.eps"
-    # save = 'no'
+    #  GENERATE POINT TIME SERIES 
 
-    # # Figure settings
-    # num_plots_x = 6
-    # num_plots_y = 14
-    # colors = 'jet'
+    # -- INPUT --------------------------------------------------------------------------------------
+    # Files
+    fileDir = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Geocoding/Attempt15/"  # Lorax
+    fileType = "LOS_*_INT3_ll.grd"
+    outDir = '/Users/ellisvavra/Thesis/analysis/Figures/'
+    outputName_ts = "ts_RDOM_Geocoded_Attempt15.eps"
 
-    # # Region settings
-    # box_width = 50         # Time-series region width in pixels
-    # box_height = 50        # Time-series region height in pixels
+    # Figure settings
+    track = 'des'
+    colors = 'jet'
+    save = 'no'
 
-    # # -- EXECUTE --------------------------------------------------------------------------------------
-    # # Get list of filenames
-    # file_names = getFileNames(fileDir, fileType)
+    # Region settings
+    boxWidth = 50         # Time-series region width in pixels
+    boxHeight = 50        # Time-series region height in pixels
 
-    # # Extract data
-    # [xdata, ydata, data_all, titles] = inputs(file_names)
+    # -- EXECUTE --------------------------------------------------------------------------------------
+    # Get list of filenames
+    fileNames = getFileNames(fileDir, fileType)
 
-    # # Plot InSAR time-series panels
-    # # insar_panels(xdata, ydata, data_all, num_plots_x, num_plots_y, titles, colors, fileDir, output_name, save)
+    # Extract data
+    [xdata, ydata, zCube, dates] = readStack(fileNames)
 
-    # # Get coordinates for point analysis
-    # region = getRegion(data_all, titles, colors, box_width, box_height)
-    # # region = [505, 510, 675, 685] # RDOM
-    # # region = [285, 305, 1265, 1285] 
-    # # region = [75, 85, 1230, 1240] # P649
+    # Get coordinates for point analysis
+    # region = insarPlots.getPoint(xdata, ydata, zCube[-2], colors, track, boxWidth, boxHeight)
+    
+    # RADAR POINTS:
+    # region = [505, 510, 675, 685] # RDOM
+    # region = [285, 305, 1265, 1285] 
+    # region = [75, 85, 1230, 1240] # P649
 
-    # # Make timeseries from selected point
-    # # point_ts(data_all, titles, region, colors, fileDir, output_name_ts, save
+    # LAT/LON POINTS:
+    RDOM = [-118.898, 37.677]
+    CA99 = [-118.897, 37.645]
+    P649 = []
 
+    # Make timeseries from selected point
+    rangeChange = timeSeries(xdata, ydata, zCube, RDOM, 10)
+    plotTimeSeries(dates, rangeChange)
 
-    # # -------------------------------- OVERLAY INSAR TIME SERIES ---------------------------------
-    # # -- INPUT -----------------------------------------------------------------------------------
-    # output_dir = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Figures/"  # Lorax
+    # plt.grid()
+    plt.title('RDOM')
+    plt.xlabel('Date')
+    plt.ylabel('LOS displacement (m)')
+    plt.show()
 
-    # fileDir11 = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt11-Deramp-3-Ref-1/SBAS_SMOOTH_0.0000e+00/"  
-    # fileDir12 = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt12-Deramp-2-Ref-1/SBAS_SMOOTH_0.0000e+00/"  
-    # fileDir14 = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt14-Updated-ts-Cmin-0.19/SBAS_SMOOTH_0.0000e+00/"  
-    # fileDir15 = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt15-Cmin-0.20/SBAS_SMOOTH_0.0000e+00/"  
-    # file_names11 = getFileNames(fileDir11, fileType)
-    # file_names12 = getFileNames(fileDir12, fileType)
-    # file_names14 = getFileNames(fileDir14, fileType)
-    # file_names15 = getFileNames(fileDir15, fileType)
-
-    # output_name_ts2 = "ts-Attempt11-12-14-15.eps"
-
-    # # -- EXECUTE ---------------------------------------------------------------------------------
-    # [xdata, ydata, data_all11, titles11] = inputs(file_names11)
-    # [xdata, ydata, data_all12, titles12] = inputs(file_names12)
-    # [xdata, ydata, data_all14, titles14] = inputs(file_names14)
-    # [xdata, ydata, data_all15, titles15] = inputs(file_names15)
-    # master_data = [data_all11, data_all12, data_all14, data_all15]
-    # master_titles = [titles11, titles12, titles14, titles15]
-    # region = [400, 450, 700, 750]
-
-    # labels = ['Attempt 12', 'Attempt 13', 'Attempt 14', 'Attempt 15']
-
-    # overlay_ts(master_data, master_titles, region, colors, fileDir12, output_name_ts2, labels, save)
+    ax = plt.subplot()
+    insarPlots.map(xdata, ydata, zCube[-2], colors, 'des', ax)
+    # plt.scatter([RDOM[0], CA99[0]], [RDOM[1], CA99[1]], marker='^', c='black')
+    seismoPlots.configMap()
+    # plt.axis([-119.2,-118.5, 37.5, 37.8])
+    plt.show()
 
 
+def overlay():
 
-    # # ------------------------- COMPARE INSAR AND GPS TIME SERIES -------------------------
-    # gps_filename = 'RDOM.IGS08.tenv3.txt'
-    # data_format = 'env'
-    # component = 'N'
-    # region = [400, 450, 700, 750]
+    #  OVERLAY INSAR TIME SERIES 
 
-    # # Get list of filenames
-    # file_names = getFileNames(fileDir, fileType)
+    # -- INPUT -----------------------------------------------------------------------------------
+    output_dir = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Figures/"  # Lorax
 
-    # # Extract data
-    # [xdata, ydata, data_all, titles] = inputs(file_names)
+    fileDir11 = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt11-Deramp-3-Ref-1/SBAS_SMOOTH_0.0000e+00/"  
+    fileDir12 = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt12-Deramp-2-Ref-1/SBAS_SMOOTH_0.0000e+00/"  
+    fileDir14 = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt14-Updated-ts-Cmin-0.19/SBAS_SMOOTH_0.0000e+00/"  
+    fileDir15 = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt15-Cmin-0.20/SBAS_SMOOTH_0.0000e+00/"  
+    fileNames11 = getFileNames(fileDir11, fileType)
+    fileNames12 = getFileNames(fileDir12, fileType)
+    fileNames14 = getFileNames(fileDir14, fileType)
+    fileNames15 = getFileNames(fileDir15, fileType)
 
-    # gps_insar_ts(data_all, titles, region, colors, fileDir, output_name_compare, save, gps_filename, data_format, component)
+    outputName_ts2 = "ts-Attempt11-12-14-15.eps"
+
+    # -- EXECUTE ---------------------------------------------------------------------------------
+    [xdata, ydata, zCube11, titles11] = inputs(fileNames11)
+    [xdata, ydata, zCube12, titles12] = inputs(fileNames12)
+    [xdata, ydata, zCube14, titles14] = inputs(fileNames14)
+    [xdata, ydata, zCube15, titles15] = inputs(fileNames15)
+    master_data = [zCube11, zCube12, zCube14, zCube15]
+    master_titles = [titles11, titles12, titles14, titles15]
+    region = [400, 450, 700, 750]
+
+    labels = ['Attempt 12', 'Attempt 13', 'Attempt 14', 'Attempt 15']
+
+    overlay_ts(master_data, master_titles, region, colors, fileDir12, outputName_ts2, labels, save)
+
+
+def compare():
+
+    # COMPARE INSAR AND GPS TIME SERIES 
+
+    # -- INPUT -----------------------------------------------------------------------------------
+
+    gps_filename = 'RDOM.IGS08.tenv3.txt'
+    data_format = 'env'
+    component = 'N'
+    region = [400, 450, 700, 750]
+
+    # -- EXECUTE ---------------------------------------------------------------------------------
+    # Get list of filenames
+    fileNames = getFileNames(fileDir, fileType)
+
+    # Extract data
+    [xdata, ydata, zCube, titles] = inputs(fileNames)
+
+    gps_insar_ts(zCube, titles, region, colors, fileDir, outputName_compare, save, gps_filename, data_format, component)
     
 
+def baseline():
 
-    # # ------------------------- CALCULATE INSAR BASELINE -------------------------
+    # CALCULATE INSAR BASELINE 
+    # -- INPUT -----------------------------------------------------------------------------------
     colors = 'jet'
     fileDir = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Geocoding/Attempt15/"  # Lorax
     fileType = "LOS_*_INT3_ll.grd"
 
+    # -- EXECUTE ---------------------------------------------------------------------------------
     # Get list of filenames
     filePaths = getFileNames(fileDir, fileType)
 
@@ -122,32 +352,54 @@ def driver():
     RDOM = timeSeries(lon, lat, zCube, [-118.898, 37.677], 10)
 
     # Compute time series for P649
-    P649= timeSeries(lon, lat, zCube, [-118.736, 37.903], 10)
+    # P649= timeSeries(lon, lat, zCube, [-118.736, 37.903], 10)
+
+    # Compute time series for CA99
+    CA99 = timeSeries(lon, lat, zCube, [-118.897, 37.645], 10)
 
     # Compute differential range change
-    RDOM_P649 = diffTimeSeries(RDOM, P649)
+    RDOM_CA99 = diffTimeSeries(RDOM, CA99)
 
     # Plot
     ax1 = plt.subplot(211)
     plotTimeSeries(dates, RDOM)
-    plotTimeSeries(dates, P649)
+    plotTimeSeries(dates, CA99)
     plt.grid()
 
     ax2 = plt.subplot(212)
-    plotTimeSeries(dates, RDOM_P649)
+    plotTimeSeries(dates, RDOM_CA99)
 
     plt.show()
+    
 
 # ------------------------- READING ------------------------- 
 
 def getFileNames(fileDir, fileType):
-     # Seatches directory fileDir for files of format fileType
+    # Seatches directory fileDir for files of format fileType
     print('Searching ' + fileDir + fileType)
     filePaths = glob.glob(fileDir + fileType)
 
     if len(filePaths) == 0:
         print("Error! No files matching search pattern.")
         sys.exit(1)
+
+    print("Reading data from " + str(len(filePaths)) + " files.")
+
+    return filePaths
+
+
+def specifyDateList(fileDir, dateList):
+    # Seatches directory fileDir for each file specified in dateList
+    filePaths = []
+    print('File list: ')
+    for date in dateList:
+        # print('Searching ' + fileDir + '*' + date + '*')
+        filePaths.append(glob.glob(fileDir + '*' + date + '*')[0])
+        print(filePaths[-1])
+
+        if len(filePaths) == 0:
+            print("Error! No files matching search pattern.")
+            sys.exit(1)
 
     print("Reading data from " + str(len(filePaths)) + " files.")
 
@@ -161,18 +413,24 @@ def readStack(filePaths):
 
     # Read in stack of 
     for file in filePaths:
+        try:
+            # File name with ra/ll suffix (LOS_20161121_INT3_ll.grd)
+            dates.append(dt.datetime.strptime(file[-20:-12], '%Y%m%d'))
 
-         # LOS_20161121_INT3_ll.grd
-        dates.append(dt.datetime.strptime(file[-20:-12], '%Y%m%d'))
+        except ValueError:
+            # Default CANDIS format (# LOS_20161121_INT3.grd)
+            dates.append(dt.datetime.strptime(file[-17:-9], '%Y%m%d'))
+
         print('Reading ' + dates[-1].strftime('%Y-%m-%d') + ' ...')
         x, y, z = readInSAR(file)
         zCube.append(z)
 
     return x, y, zCube, dates
 
+
 # ------------------------- SELECT ------------------------- 
 
-def getRegion(data_all, titles, colors, box_width, box_height):
+def getRegion(zCube, titles, colors, boxWidth, boxHeight):
 
     point = []
     region = []
@@ -185,10 +443,10 @@ def getRegion(data_all, titles, colors, box_width, box_height):
         point.append(int(event.xdata))
         point.append(int(event.ydata))
 
-        region.append(int(point[0] - box_width/2))
-        region.append(int(point[0] + box_width/2))
-        region.append(int(point[1] - box_height/2))
-        region.append(int(point[1] + box_height/2))
+        region.append(int(point[0] - boxWidth/2))
+        region.append(int(point[0] + boxWidth/2))
+        region.append(int(point[1] - boxHeight/2))
+        region.append(int(point[1] + boxHeight/2))
 
         print()
         print('Centroid: ' + str(point[-1]))
@@ -206,7 +464,7 @@ def getRegion(data_all, titles, colors, box_width, box_height):
 
     # Plot deformation map with selected region/pixels overlain
     ax1 = plt.subplot(111)
-    im = ax1.imshow(data_all[-1], cmap=colors, vmin=-0.05, vmax=0.05, aspect=0.75)
+    im = ax1.imshow(zCube[-1], cmap=colors, vmin=-0.05, vmax=0.05, aspect=0.75)
     ax1.set_title(titles[-1], fontsize=12, color='black')
     ax1.invert_yaxis()
     ax1.invert_xaxis()
@@ -220,7 +478,7 @@ def getRegion(data_all, titles, colors, box_width, box_height):
     return region
 
 
-def getBaseline(data_all, titles, colors):
+def getBaseline(zCube, titles, colors):
 
     points = []
 
@@ -238,7 +496,7 @@ def getBaseline(data_all, titles, colors):
 
     # Plot deformation map with selected region/pixels overlain
     ax1 = plt.subplot(111)
-    im = ax1.imshow(data_all[-1], cmap=colors, vmin=-0.05, vmax=0.05, aspect=0.75)
+    im = ax1.imshow(zCube[-1], cmap=colors, vmin=-0.05, vmax=0.05, aspect=0.75)
     ax1.set_title(titles[-1], fontsize=12, color='black')
     ax1.invert_yaxis()
     ax1.invert_xaxis()
@@ -313,6 +571,7 @@ def timeSeries(xData, yData, zCube, point, boxDim):
 
     return rangeChange
 
+
 def diffTimeSeries(ts1, ts2):
     # Calculate differential change between two point time series
     diff = []
@@ -322,53 +581,54 @@ def diffTimeSeries(ts1, ts2):
 
     return diff
 
+
 # ------------------------- PLOTTING ------------------------- 
 
-def insar_panels(xdata, ydata, data_all, num_plots_x, num_plots_y, titles, colors, fileDir, output_name, save):
+def insarPanels(xdata, ydata, zCube, num_plots_x, num_plots_y, dates, colors, fileDir, outputName, save, track, subFigID):
 
     rows = num_plots_y
     cols = num_plots_x
     count = 0
 
-    fig = plt.figure(figsize=(rows * 12, cols * 10))
+    fig = plt.figure(figsize=(cols + cols, rows + rows))
+    fig = plt.figure(figsize=(cols * 5, rows * 4))
 
-    grid = AxesGrid(fig, 111,
+    grid = ImageGrid(fig, 111,
                     nrows_ncols=(rows, cols),
-                    axes_pad=0.4,
+                    axes_pad=0.25,
                     cbar_mode='single',
                     cbar_location='right',
-                    cbar_pad=0.2
+                    cbar_pad=0.2,
+                    cbar_size='5%'
                     )
 
-    print('Number of files: ' + str(len(data_all)))
+    print()
+    print('Number of files: ' + str(len(zCube)))
 
     for ax in grid:
-        if count == len(data_all):
+        if count == len(zCube):
             break
 
         ax.set_axis_off()
-        # im = ax.imshow(data_all[count], cmap='jet', aspect=8)
-        im = ax.imshow(data_all[count], vmin=-0.05, vmax=0.05, cmap=colors, aspect=0.75)
-        # ax.plot(400, 700, marker='o', markersize=5, color='black', zorder=10000)
-        ax.set_title(titles[count], fontsize=20, color='black')
-        ax.invert_yaxis()
-        ax.invert_xaxis()
+        im = insarPlots.map(xdata, ydata, zCube[count], colors, track, ax)
 
-        print(titles[count])
+        ax.set_title(dates[count].strftime('%Y-%m-%d'), fontsize=10, color='black')
+        # ax.invert_yaxis()
+        # ax.invert_xaxis()
         count += 1
- 
+        
+
     cbar = ax.cax.colorbar(im)
-    # cbar = grid.cbar_axes[0].colorbar(im)
+    cbar.ax.set_yticks(np.arange(-0.05, 0.051, 0.01))
+    cbar.ax.tick_params(labelsize=20)
+    cbar.ax.set_label('LOS displacement (m)')
 
-    cbar.ax.set_yticks(np.arange(-0.05, 0.05))
-    # cbar.ax.set_yticklabels(['low', 'medium', 'high'])
-
-    
     if save == 'yes':
-        print('Saving InSAR panels to ' + fileDir + output_name)
-        plt.savefig(fileDir + output_name)
+        print()
+        print('Saving InSAR panels to ' + fileDir + outputName)
+        plt.savefig(fileDir + outputName)
         plt.close()
-        subprocess.call("open " + fileDir + output_name, shell=True)
+        subprocess.call("open " + fileDir + outputName, shell=True)
 
     else:
         plt.show()
@@ -386,8 +646,8 @@ def plotTimeSeries(dates, timeSeries):
     # plt.ylabel('LOS range change (m)')
 
 
-def overlay_ts(master_data, master_titles, region, colors, fileDir, output_name_ts2, labels, save):
-    # master_data = list of data_all# lists
+def overlay_ts(master_data, master_titles, region, colors, fileDir, outputName_ts2, labels, save):
+    # master_data = list of zCube# lists
 
     dates = []
     range_change = []
@@ -450,16 +710,16 @@ def overlay_ts(master_data, master_titles, region, colors, fileDir, output_name_
     plt.ylabel('LOS range change (m)', rotation=0, labelpad=58)
 
     if save == 'yes':
-        print('Saving time series to ' + fileDir + output_name_ts2)
-        plt.savefig(fileDir + output_name_ts2)
+        print('Saving time series to ' + fileDir + outputName_ts2)
+        plt.savefig(fileDir + outputName_ts2)
         plt.close()
-        subprocess.call("open " + fileDir + output_name_ts2, shell=True)
+        subprocess.call("open " + fileDir + outputName_ts2, shell=True)
 
     else:
         plt.show()
 
 
-def gps_insar_ts(data_all, titles, region, colors, fileDir, output_name_compare, save, gps_filename, data_format, component):
+def gps_insar_ts(zCube, titles, region, colors, fileDir, outputName_compare, save, gps_filename, data_format, component):
 
     dates_insar = []
     range_change = []
@@ -468,7 +728,7 @@ def gps_insar_ts(data_all, titles, region, colors, fileDir, output_name_compare,
 
     # Plot deformation map with selected region/pixels overlain
     ax1 = plt.subplot(121)
-    im = ax1.imshow(data_all[-1], cmap=colors, vmin=-0.05, vmax=0.05, aspect=0.75)
+    im = ax1.imshow(zCube[-1], cmap=colors, vmin=-0.05, vmax=0.05, aspect=0.75)
 
     ax1.plot([region[0], region[0], region[1], region[1], region[0]], [region[2], region[3], region[3], region[2], region[2]], color='blue', zorder=10000)
     ax1.set_title(titles[-1], fontsize=12, color='black')
@@ -478,16 +738,16 @@ def gps_insar_ts(data_all, titles, region, colors, fileDir, output_name_compare,
     # cbar.set_label('LOS change (m)')
 
     # Get averaged timeseries for given region 
-    for i in range(len(data_all)):
+    for i in range(len(zCube)):
         nanCount=0
         sum = []
         numPix = 0
         for x in range(region[0], region[1]):
             for y in range(region[2], region[3]):
-                if math.isnan(data_all[i][y][x]):
+                if math.isnan(zCube[i][y][x]):
                     nanCount+=1
                 else:
-                    sum.append(data_all[i][y][x])
+                    sum.append(zCube[i][y][x])
                     numPix += 1
 
         # print('nanCount = ' + str(nanCount))
@@ -548,10 +808,10 @@ def gps_insar_ts(data_all, titles, region, colors, fileDir, output_name_compare,
 
 
     if save == 'yes':
-        print('Saving time series to ' + fileDir + output_name_compare)
-        plt.savefig(fileDir + output_name_compare)
+        print('Saving time series to ' + fileDir + outputName_compare)
+        plt.savefig(fileDir + outputName_compare)
         plt.close()
-        subprocess.call("open " + fileDir + output_name_compare, shell=True)
+        subprocess.call("open " + fileDir + outputName_compare, shell=True)
 
     else:
         plt.show()
@@ -574,8 +834,8 @@ DEFUNCT CODE
     fileType = "LOS_2019*_INT3_ll.grdnc3"
 
     # Output filenames
-    output_name = "panels_Attempt15.eps"
-    output_name_swath = "swath_Attempt15"
+    outputName = "panels_Attempt15.eps"
+    outputName_swath = "swath_Attempt15"
 
      # Figure settings
     proj = 'll'
@@ -583,7 +843,7 @@ DEFUNCT CODE
     save = 'no'
 
 
-def point_ts(data_all, titles, region, colors, fileDir, output_name_ts, save):
+def point_ts(zCube, titles, region, colors, fileDir, outputName_ts, save):
 
     dates = []
     range_change = []
@@ -594,7 +854,7 @@ def point_ts(data_all, titles, region, colors, fileDir, output_name_ts, save):
     ax1 = plt.subplot(121)
     # ax1 = plt.subplot(111)
     # grid[0].set_axis_off()
-    im = ax1.imshow(data_all[-3], cmap=colors, vmin=-0.05, vmax=0.05, aspect=0.75)
+    im = ax1.imshow(zCube[-3], cmap=colors, vmin=-0.05, vmax=0.05, aspect=0.75)
 
     ax1.plot([region[0], region[0], region[1], region[1], region[0]], [region[2], region[3], region[3], region[2], region[2]], color='blue', zorder=10000)
     ax1.set_title(titles[-3], fontsize=12, color='black')
@@ -605,16 +865,16 @@ def point_ts(data_all, titles, region, colors, fileDir, output_name_ts, save):
 
 
     # Get averaged timeseries for given region 
-    for i in range(len(data_all)):
+    for i in range(len(zCube)):
         nanCount=0
         sum = []
         numPix = 0
         for x in range(region[0], region[1]):
             for y in range(region[2], region[3]):
-                if math.isnan(data_all[i][y][x]):
+                if math.isnan(zCube[i][y][x]):
                     nanCount+=1
                 else:
-                    sum.append(data_all[i][y][x])
+                    sum.append(zCube[i][y][x])
                     numPix += 1
 
         print('nanCount = ' + str(nanCount))
@@ -639,76 +899,76 @@ def point_ts(data_all, titles, region, colors, fileDir, output_name_ts, save):
     plt.ylabel('LOS range change (m)', rotation=0, labelpad=58)
 
     if save == 'yes':
-        print('Saving time series to ' + fileDir + output_name_ts)
-        plt.savefig(fileDir + output_name_ts)
+        print('Saving time series to ' + fileDir + outputName_ts)
+        plt.savefig(fileDir + outputName_ts)
         plt.close()
-        subprocess.call("open " + fileDir + output_name_ts, shell=True)
+        subprocess.call("open " + fileDir + outputName_ts, shell=True)
 
     else:
         plt.show()
 
-def inputs(file_names):
+def inputs(fileNames):
 
     # Make exception if .grd files are in lat/lon coordinates and not yet converted to old NetCDF format
-    if '_ll.' in file_names[0]:
+    if '_ll.' in fileNames[0]:
         print('LOS files have been geocoded.')
         print()
 
         xdata = []
         ydata = []
-        data_all = []
+        zCube = []
         titles = []
-        file_names = sorted(file_names)  # To force into date-ascending order.
+        fileNames = sorted(fileNames)  # To force into date-ascending order.
 
-        if 'grdnc3' in file_names[0]:
+        if 'grdnc3' in fileNames[0]:
             print('Files have already been converted to NetCDF3 format')
 
-            for ifile in file_names:   # Read the data
+            for ifile in fileNames:   # Read the data
                 print('Reading ' + ifile + ' ...')
                 [x, y, z] = netcdf_read_write.read_grd_lonlatz(ifile)
 
                 xdata.append(x)
                 ydata.append(y)
-                data_all.append(z)
+                zCube.append(z)
 
                 # LOS_20161121_INT3_ll.grdnc3
                 titles.append(ifile[-23:-15])
         else:
             print('Need to convert files to NetCDF3 format')
-            for ifile in file_names:   # Read the data
+            for ifile in fileNames:   # Read the data
                 print('Reading ' + ifile + ' ...')
                 [x, y, z] = netcdf_read_write.read_netcdf4_variables(ifile, 'lon', 'lat', 'z')
 
                 xdata.append(x)
                 ydata.append(y)
-                data_all.append(z)
+                zCube.append(z)
 
                 # LOS_20161121_INT3_ll.grd
                 titles.append(ifile[-23:-15])
 
     else:
         try:
-            [xdata, ydata] = netcdf_read_write.read_grd_xy(file_names[0])  # can read either netcdf3 or netcdf4.
+            [xdata, ydata] = netcdf_read_write.read_grd_xy(fileNames[0])  # can read either netcdf3 or netcdf4.
         except TypeError:
-            [xdata, ydata] = netcdf_read_write.read_netcdf4_xy(file_names[0])
+            [xdata, ydata] = netcdf_read_write.read_netcdf4_xy(fileNames[0])
 
-        data_all = []
-        file_names = sorted(file_names)  # To force into date-ascending order.
+        zCube = []
+        fileNames = sorted(fileNames)  # To force into date-ascending order.
         titles = []
 
-        for ifile in file_names:  # Read the data
+        for ifile in fileNames:  # Read the data
             print('Reading ' + ifile + ' ...')
             try:
                 data = netcdf_read_write.read_grd(ifile)
             except TypeError:
                 data = netcdf_read_write.read_netcdf4(ifile)
-            data_all.append(data)
+            zCube.append(data)
             # LOS_20161121_INT3.grd
             titles.append(ifile[-17:-9])
 
-    return [xdata, ydata, data_all, titles]
+    return [xdata, ydata, zCube, titles]
 
-def getSwath(data_all, titles, colors, proj):
+def getSwath(zCube, titles, colors, proj):
 
     points = []
     region = []
@@ -731,7 +991,7 @@ def getSwath(data_all, titles, colors, proj):
 
     # Plot deformation map with selected region/pixels overlain
     ax1 = plt.subplot(111)
-    im = ax1.imshow(data_all[-2], cmap=colors, vmin=-0.05, vmax=0.05, aspect=0.75, zorder=1)
+    im = ax1.imshow(zCube[-2], cmap=colors, vmin=-0.05, vmax=0.05, aspect=0.75, zorder=1)
     ax1.set_title(titles[-2], fontsize=12, color='black')
 
     if proj == 'ra':
@@ -749,7 +1009,7 @@ def getSwath(data_all, titles, colors, proj):
 
     return region
 
-def swath(data_all, titles, region, colors, fileDir, output_name_swath, save, proj):
+def swath(zCube, titles, region, colors, fileDir, outputName_swath, save, proj):
 
     range_change = []
 
@@ -759,7 +1019,7 @@ def swath(data_all, titles, region, colors, fileDir, output_name_swath, save, pr
     ax1 = plt.subplot(121)
 
     plt.grid()
-    im = ax1.imshow(data_all[-2], vmin=-0.05, vmax=0.05, cmap=colors, aspect=0.75)
+    im = ax1.imshow(zCube[-2], vmin=-0.05, vmax=0.05, cmap=colors, aspect=0.75)
 
     ax1.plot([region[0], region[0], region[1], region[1], region[0]], [region[2], region[3], region[3], region[2], region[2]], color='blue', zorder=10000)
     ax1.set_title(titles[-2], fontsize=12, color='black')
@@ -773,15 +1033,15 @@ def swath(data_all, titles, region, colors, fileDir, output_name_swath, save, pr
     # cbar.set_label('LOS change (m)')
 
     print()
-    print('Number of dates = ' + str(len(data_all)))
-    print('Range = ' + str(len(data_all[-1])))
-    print('Azimuth = ' + str(len(data_all[-1][0])))
+    print('Number of dates = ' + str(len(zCube)))
+    print('Range = ' + str(len(zCube[-1])))
+    print('Azimuth = ' + str(len(zCube[-1][0])))
     print('Swath = ' + str(region))
     print()
     swath_x = []
     swath_y = []
 
-    displacements = data_all[-2]
+    displacements = zCube[-2]
 
     # Calculate mean swath displacements for East-West trending swath
     if len(range(region[0], region[1])) > len(range(region[2], region[3])):
@@ -831,10 +1091,10 @@ def swath(data_all, titles, region, colors, fileDir, output_name_swath, save, pr
     
 
     if save == 'yes':
-        print('Saving swath plot to ' + fileDir + output_name_swath)
-        plt.savefig(fileDir + output_name_swath)
+        print('Saving swath plot to ' + fileDir + outputName_swath)
+        plt.savefig(fileDir + outputName_swath)
         plt.close()
-        subprocess.call("open " + fileDir + output_name_swath, shell=True)
+        subprocess.call("open " + fileDir + outputName_swath, shell=True)
 
     else:
         plt.show()

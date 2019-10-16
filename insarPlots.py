@@ -200,21 +200,27 @@ def map(xdata, ydata, zdata, colormap, vlim, track, CRS, subFigAx):
             dx = (xdata[1] - xdata[0])/2
             dy = (ydata[1] - ydata[0])/2
             extent = [xdata[0]-dx, xdata[-1]+dx, ydata[0]-dy, ydata[-1]+dy]
-
             im = subFigAx.imshow(masked_array, extent=extent, cmap=colormap, aspect=1.15, vmin=vlim[0], vmax=vlim[1], zorder=0)
-            # seismoPlots.configMap()
+
 
         elif CRS == 'ra':
-            cmap = cm.seismic
+            cmap = cm.jet
 
             # For radar coordinates
+            extent = [xdata[0], xdata[-1], ydata[0], ydata[-1]]
             im = subFigAx.imshow(zdata, cmap=colormap, aspect=1, vmin=vlim[0], vmax=vlim[1])
             subFigAx.invert_xaxis()
-            
-            # For ll
 
-            # cbar = plt.colorbar(im)
-            # cbar.set_label('LOS change (m)')
+        elif CRS == 'orig':
+
+            extent = [int(min(xdata)), int(max(xdata)), int(max(ydata)), int(min(ydata))]
+
+            if len(vlim) == 2:
+                im = subFigAx.imshow(zdata, extent=extent, cmap=colormap, aspect=3.3, vmin=vlim[0], vmax=vlim[1])
+            else:
+                im = subFigAx.imshow(zdata, extent=extent, cmap=colormap, aspect=3.3)
+
+            subFigAx.invert_xaxis()
 
         return im
 
