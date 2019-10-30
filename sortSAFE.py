@@ -1,12 +1,16 @@
 import glob
 import datetime as dt
 import pandas as pd
+import os
 
 # ------ sortSAFE.py ------------------------------------------------------------------
 # - Method for organizing list of GMTSAR SAFE directories to be used in InSAR processing
 # - Need to have directories organized by aquisition date rather than satellite ID (S1A/S1B) 
 #   or polarization setting (1SSV/1SDV)
 # - Run from 'data' directory containing raw SAR data to generate date-sorted list of files
+
+# Get working directory path
+dirPath = os.getcwd()
 
 # Get list of directory names
 dirList = glob.glob('*SAFE')
@@ -27,5 +31,5 @@ print(sortList)
 # Save to new file called 'SAFE_filelist'
 with open('SAFE_filelist', 'w') as newList:
     for i in range(len(dirList)):
-        newList.write(sortList.iloc[(i, 1)] + '\n')
+        newList.write(dirPath + '/' + sortList.iloc[(i, 1)] + '\n')
 
