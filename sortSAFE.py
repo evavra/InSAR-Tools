@@ -19,7 +19,7 @@ dirList = glob.glob('*SAFE')
 dates = []
 
 for name in dirList:
-    dates.append(dt.datetime.strptime((name[17:25] + name[26:32], '%Y%m%d%I%M%s'), '%Y%m%d'))
+    dates.append(dt.datetime.strptime(name[17:25] + name[26:32], '%Y%m%d%I%M%S'))
 
 # Add to dataframe and sort by date
 sortList = pd.DataFrame({'date': dates, 'name': dirList})
