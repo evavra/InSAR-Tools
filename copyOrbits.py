@@ -3,22 +3,17 @@ import glob as glob
 import subprocess
 import os
 import shutil
+import datetime as dt
+
 
 def copyOrbits(SAFE_filelist):
     """
     Example SAFE_filelist:
     /Users/ellisvavra/Thesis/insar/des/data/S1A_IW_SLC__1SSV_20160326T135920_20160326T135947_010541_00FA9F_2B05.SAFE
-    .
-    .
-    .
 
     Example output format:
     S1A_OPER_AUX_POEORB_OPOD_20160415T121448_V20160325T225943_20160327T005943.EOF
-    .
-    .
-    .
     """
-
 
     # Set home directory where orbit files are stored
     homedir = '~/S1_orbits/'
@@ -38,33 +33,16 @@ def copyOrbits(SAFE_filelist):
     searchList = []
     for line in SAFE_list:
 
+        date = line[57:65]
+        date1 = dt.datetime.strptime(date, '%Y%m%d') - dt.timedelta(day=1)
+        date2 = dt.datetime.strptime(date, '%Y%m%d') + dt.timedelta(day=1)
 
-        if int(line[63:65]) == 1:
-            # Need to account for month change
-            # In: .../S1A_IW_SLC__1SSV_20170201T135916_20170201T135944_015091_018AB7_370C.SAFE
-            # Out: S1A*V20160325*20160327*.EOF
-            searchList.append(homedir + line[40:43] + '*V' + str(int(line[57:65]) - 1) + '*' + str(int(line[57:65]) + 1) + '*.EOF')
-
-
-
-        else:
-            # Ex: S1A*V20160325*20160327*.EOF
-            searchList.append(homedir + line[40:43] + '*V' + str(int(line[57:65]) - 1) + '*' + str(int(line[57:65]) + 1) + '*.EOF')
-            print(line[40:43] + '*V' + str(int(line[57:65]) - 1) + '*' + str(int(line[57:65]) + 1) + '*.EOF')
-
+        searchList.append(homedir + '/' + line[40:43] + '*V' + date2.strftime('%Y%m%d') + '*.EOF')
 
     # lets try something else...
     for item in searchList:
         shutil.copy(item, '.')
 
 
-    """
-    # Search S1 orbit home directory using searchList
-    for item in searchList:
-        print('Searching ' + item)
-        subprocess.call(['cp', homedir + item, '.'], shell=True)
-        print(item + ' copied')
-    """
-
 if __name__ == '__main__':
-    copyOrbits('testList')
+    copyOrbits(sys.argv[0])
