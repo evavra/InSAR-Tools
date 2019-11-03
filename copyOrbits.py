@@ -16,7 +16,7 @@ def copyOrbits(SAFE_filelist):
     """
 
     # Set home directory where orbit files are stored
-    homedir = '~/S1_orbits/'
+    homedir = '/Users/ellisvavra/S1_orbits'
 
     # Read SAFE_list into a Python list
     with open(SAFE_filelist, "r") as tempFile:
@@ -30,19 +30,21 @@ def copyOrbits(SAFE_filelist):
 
     # Create list of dates to search orbit directory using UNIX commands
     print('Search strings...')
+    
     searchList = []
+
     for line in SAFE_list:
 
         date = line[57:65]
-        date1 = dt.datetime.strptime(date, '%Y%m%d') - dt.timedelta(day=1)
-        date2 = dt.datetime.strptime(date, '%Y%m%d') + dt.timedelta(day=1)
+        date1 = dt.datetime.strptime(date, '%Y%m%d') - dt.timedelta(days=1)
+        date2 = dt.datetime.strptime(date, '%Y%m%d') + dt.timedelta(days=1)
 
-        searchList.append(homedir + '/' + line[40:43] + '*V' + date2.strftime('%Y%m%d') + '*.EOF')
+        searchList.append(glob.glob(homedir + '/' + line[40:43] + '*V' + date1.strftime('%Y%m%d') + '*_' + date2.strftime('%Y%m%d') + '*.EOF'))
 
     # lets try something else...
     for item in searchList:
-        shutil.copy(item, '.')
+        shutil.copy(str(item[0]), '.')
 
 
 if __name__ == '__main__':
-    copyOrbits(sys.argv[0])
+    copyOrbits('./SAFE_filelist')
