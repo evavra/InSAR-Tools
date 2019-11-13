@@ -20,7 +20,7 @@ import seismoPlots
 # ------------------------- DRIVER ------------------------- 
 
 def driver():
-    pointTimeSeries()
+    panels()
 
 # ------------------------- CONFIGURE ------------------------- 
 
@@ -30,9 +30,9 @@ def panels():
 
     # -- INPUT --------------------------------------------------------------------------------------
     # Files
-    fileDir = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Geocoding/Attempt15/"
-    fileType = "LOS_*_INT3_ll.grd"
-    outDir = '/Users/ellisvavra/Thesis/analysis/Figures/'
+    fileDir = "/Users/ellisvavra/Thesis/insar/asc/f1/intf_all/Attempt5/SBAS_SMOOTH_0.0000e+00/"
+    fileType = "LOS_*_INT3.grd"
+    outDir = '/Users/ellisvavra/Thesis/insar/asc/f1/intf_all/Attempt5/'
 
     """
     # Master
@@ -116,8 +116,8 @@ def panels():
                 '20190721']
                 '20190802' ]
     """
-
-    dateList = ['20141108',
+    """
+    # dateList = ['20141108',
                 # '20141202',
 
                 # '20150308',
@@ -197,15 +197,18 @@ def panels():
                 # '20190709',
                 '20190721']
                 # '20190802' ]
-    outputName = "panels_all_geocoded_Attempt15_features.eps"
+    """
+    outputName = "insar_panels.eps"
     save = 'yes'
 
     # Figure settings
-    num_plots_x = 13
-    num_plots_y = 6
+    num_plots_x = 11
+    num_plots_y = 8
     colors = 'jet'
-    track = 'des'
+    track = 'asc'
     subFigID = 111
+    CRS = 'orig'
+    vlim = [-0.05, 0.04]
 
     # -- EXECUTE --------------------------------------------------------------------------------------
     # Get list of filenames
@@ -219,7 +222,7 @@ def panels():
 
     # Plot InSAR time-series panels
     # insarPanels(xdata, ydata, zCube, num_plots_x, num_plots_y, titles, colors, fileDir, outputName, save)
-    insarPanels(xdata, ydata, zCube, num_plots_x, num_plots_y, dates, colors, outDir, outputName, save, track, subFigID)
+    insarPanels(xdata, ydata, zCube, num_plots_x, num_plots_y, dates, colors, vlim, CRS, outDir, outputName, save, track, subFigID)
 
 
 def pointTimeSeries():
@@ -228,15 +231,15 @@ def pointTimeSeries():
 
     # -- INPUT --------------------------------------------------------------------------------------
     # Files
-    fileDir = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Geocoding/Attempt15/"  # Lorax
-    fileType = "LOS_*_INT3_ll.grd"
-    outDir = '/Users/ellisvavra/Thesis/analysis/Figures/'
-    outputName_ts = "ts_RDOM_Geocoded_Attempt15.eps"
+    fileDir = "/Users/ellisvavra/Thesis/insar/asc/f1/intf_all/Attempt1/SBAS_SMOOTH_0.0000e+00/"
+    fileType = "LOS_*_INT3.grd"
+    outDir = '/Users/ellisvavra/Thesis/insar/asc/f1/intf_all/Attempt1/'
+    outputName_ts = "timeseries_RDOM_est.eps"
 
     # Figure settings
-    track = 'des'
-    colors = 'jet'
-    save = 'no'
+    track = 'asc'
+    colors = 'viridis'
+    save = 'yes'
 
     # Region settings
     boxWidth = 50         # Time-series region width in pixels
@@ -250,32 +253,33 @@ def pointTimeSeries():
     [xdata, ydata, zCube, dates] = readStack(fileNames)
 
     # Get coordinates for point analysis
-    # region = insarPlots.getPoint(xdata, ydata, zCube[-2], colors, track, boxWidth, boxHeight)
+    # boxIndex, boxCoords = insarPlots.getPoint(xdata, ydata, zCube[-2], colors, track, boxWidth, boxHeight)
     
     # RADAR POINTS:
     # region = [505, 510, 675, 685] # RDOM
     # region = [285, 305, 1265, 1285] 
     # region = [75, 85, 1230, 1240] # P649
+    RDOM_est = [15700, 5400]
 
     # LAT/LON POINTS:
-    RDOM = [-118.898, 37.677]
-    CA99 = [-118.897, 37.645]
-    P649 = []
+    # RDOM = [-118.898, 37.677]
+    # CA99 = [-118.897, 37.645]
+    # P649 = []
 
     # Make timeseries from selected point
-    rangeChange = timeSeries(xdata, ydata, zCube, RDOM, 10)
+    rangeChange = timeSeries(np.array(xdata), np.array(ydata), zCube, RDOM_est, 10)
     plotTimeSeries(dates, rangeChange)
 
     # plt.grid()
-    plt.title('RDOM')
+    # plt.title('RDOM')
     plt.xlabel('Date')
     plt.ylabel('LOS displacement (m)')
     plt.show()
 
     ax = plt.subplot()
-    insarPlots.map(xdata, ydata, zCube[-2], colors, 'des', ax)
+    insarPlots.map(xdata, ydata, zCube[-2], colors, [-0.05, 0.05], 'asc', 'orig', ax)
     # plt.scatter([RDOM[0], CA99[0]], [RDOM[1], CA99[1]], marker='^', c='black')
-    seismoPlots.configMap()
+    # seismoPlots.configMap()
     # plt.axis([-119.2,-118.5, 37.5, 37.8])
     plt.show()
 
@@ -584,7 +588,7 @@ def diffTimeSeries(ts1, ts2):
 
 # ------------------------- PLOTTING ------------------------- 
 
-def insarPanels(xdata, ydata, zCube, num_plots_x, num_plots_y, dates, colors, fileDir, outputName, save, track, subFigID):
+def insarPanels(xdata, ydata, zCube, num_plots_x, num_plots_y, dates, colors, vlim, CRS, fileDir, outputName, save, track, subFigID):
 
     rows = num_plots_y
     cols = num_plots_x
@@ -610,7 +614,7 @@ def insarPanels(xdata, ydata, zCube, num_plots_x, num_plots_y, dates, colors, fi
             break
 
         ax.set_axis_off()
-        im = insarPlots.map(xdata, ydata, zCube[count], colors, track, ax)
+        im = insarPlots.map(xdata, ydata, zCube[count], colors, vlim, track, CRS, ax)
 
         ax.set_title(dates[count].strftime('%Y-%m-%d'), fontsize=10, color='black')
         # ax.invert_yaxis()

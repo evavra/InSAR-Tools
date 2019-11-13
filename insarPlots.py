@@ -38,7 +38,17 @@ def getPoint(xdata, ydata, zdata, colors, track, boxWidth, boxHeight):
     # Use a SEPARATE method from normak 'map' function in order to get grid x & y indicies, not values
 
     if track == 'asc': 
-        print("You haven't written ascending data plot method yet")
+        # print("You haven't written ascending data plot method yet")
+
+        extent = [0, len(xdata), 0, len(ydata)]
+
+        # Make plot
+        ax = plt.subplot(111)
+        im = ax.imshow(zdata, extent=extent, cmap=colors, aspect=1.1/1.085)
+        ax.invert_yaxis()
+        cbar = plt.colorbar(im)
+        cbar.set_label('LOS change (m)')
+
 
     elif track == 'des':
 
@@ -185,7 +195,41 @@ def map(xdata, ydata, zdata, colormap, vlim, track, CRS, subFigAx):
     # custom routines to the same subfigure
     
     if track == 'asc': 
-        print("You haven't written ascending data plot method yet")
+        # print("You haven't written ascending data plot method yet")
+
+        if CRS == 'll':
+            # Create nan mask
+            masked_array = np.ma.array(zdata, mask=np.isnan(zdata))
+
+            cmap = cm.jet
+            cmap.set_bad('white', 1.)
+
+            # Determine decimation increment for lat and lon axes
+            dx = (xdata[1] - xdata[0])/2
+            dy = (ydata[1] - ydata[0])/2
+            extent = [xdata[0]-dx, xdata[-1]+dx, ydata[0]-dy, ydata[-1]+dy]
+            im = subFigAx.imshow(masked_array, extent=extent, cmap=colormap, aspect=1.15, vmin=vlim[0], vmax=vlim[1], zorder=0)
+
+
+        elif CRS == 'ra':
+            cmap = cm.jet
+
+            # For radar coordinates
+            extent = [xdata[0], xdata[-1], ydata[0], ydata[-1]]
+            im = subFigAx.imshow(zdata, cmap=colormap, aspect=1, vmin=vlim[0], vmax=vlim[1])
+            subFigAx.invert_yaxis()
+
+        elif CRS == 'orig':
+
+            extent = [int(min(xdata)), int(max(xdata)), int(min(ydata)), int(max(ydata))]
+
+            if len(vlim) == 2:
+                im = subFigAx.imshow(zdata, extent=extent, cmap=colormap, aspect=3.3, vmin=vlim[0], vmax=vlim[1])
+            else:
+                im = subFigAx.imshow(zdata, extent=extent, cmap=colormap, aspect=3.3)
+            subFigAx.invert_yaxis()
+            
+        return im
 
     elif track == 'des':
 
