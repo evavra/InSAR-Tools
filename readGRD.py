@@ -12,13 +12,23 @@ def readInSAR(filePath):
         zdata = nc.variables['z']
 
     elif '_ll.' in filePath:
-        xdata = np.array(nc.variables['lon'])
-        ydata = np.array(nc.variables['lat'])
-        zdata = np.array(nc.variables['z'])
+        try:
+            xdata = np.array(nc.variables['lon'])
+            ydata = np.array(nc.variables['lat'])
+            zdata = np.array(nc.variables['z'])
 
-        # Convert longitude data to Prime Meridian = 0 deg
-        xdata = xdata - 360
-        zdata = np.flip(zdata, 0)
+            # Convert longitude data to Prime Meridian = 0 deg
+            xdata = xdata - 360
+            zdata = np.flip(zdata, 0)
+
+        except KeyError:   
+            # Assume variable names have regular format
+            xdata = np.array(nc.variables['x'])
+            ydata = np.array(nc.variables['y'])
+            zdata = np.array(nc.variables['z'])
+
+            xdata = xdata - 360
+            zdata = np.flip(zdata, 0)
 
     else: 
         # Assume radar format (CANDIS default)
