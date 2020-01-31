@@ -62,7 +62,7 @@ def downloadOrbits(urls):
 
 if __name__ == '__main__':
 
-    urls = getOrbitURL('testList')
+    urls = getOrbitURL('/Users/ellisvavra/Thesis/insar/des/data/orbits.list')
     print(urls)
     downloadOrbits(urls)
 
