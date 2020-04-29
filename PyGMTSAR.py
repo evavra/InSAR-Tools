@@ -4,11 +4,151 @@ import datetime as dt
 import pandas as pd
 import glob as glob
 import netCDF4 as nc
+import subprocess
+import datetime as dt
+import requests
 from matplotlib import cm
 from mpl_toolkits.axes_grid1 import ImageGrid
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+"""
+A library of Python tools for generating InSAR time series with GMTSAR
 
+"""
+
+
+# -------------------- DOWNLOADING --------------------
+
+def getOrbits(listURL, orbitURL, dirList, saveDir):
+    """
+    getOrbits - download Sentinel-1 orbits for a given set of SAFE folders.
+
+    INPUTS:
+    listURL = Typically "https://s1qc.asf.alaska.edu/aux_poeorb"
+    orbitURL = 'http://aux.sentinel1.eo.esa.int/POEORB' for precise orbit files
+    dirList = list of SAFE directories to get orbit files for (i.e. SAFE_filelist)
+    saveDir = directory to save orbits in (usually in {asc/des}/data)
+
+    OUTPUTS:
+    orbitList = list containing links to download orbit files
+    downloadList = List of orbit files to download
+
+    """
+
+    # listURL = "https://s1qc.asf.alaska.edu/aux_poeorb"  # May need to get edited in the future
+    # orbitURL = 'http://aux.sentinel1.eo.esa.int/POEORB'
+    # dirList = 'SAFE_filelist'
+    # saveDir = '.'
+
+    def getOrbitList(url):
+        # Gets list of all .EOF filenames from specified URL
+
+        # Scrape current list of S1A/B orbit filenames
+        print('Getting list of current orbit files from ' + url + ' ...')
+        orbitHTML = requests.get(url)
+        tempList = list(orbitHTML.text.split("\n")[4:-7])
+
+        # Save names to list
+        orbitList = []
+        for line in tempList:
+            orbitList.append(line[9:86])
+
+        return orbitList
+
+    def getOrbitURL(orbitList, dirList):
+        # Get list of EOF file URLs based on input list of directories
+        # orbitList format:
+            # S1A_OPER_AUX_POEORB_OPOD_20180228T120602_V20180207T225942_20180209T005942.EOF
+            # S1A_OPER_AUX_POEORB_OPOD_20180312T120552_V20180219T225942_20180221T005942.EOF
+            # S1A_OPER_AUX_POEORB_OPOD_20180324T120757_V20180303T225942_20180305T005942.EOF
+            # ...
+
+        # dirList format:
+            # S1A_IW_SLC__1SDV_20191013T135939_20191013T140006_029441_035951_9DBD.SAFE
+            # S1A_IW_SLC__1SDV_20191025T135939_20191025T140006_029616_035F52_BCBC.SAFE
+            # S1A_IW_SLC__1SDV_20191106T135939_20191106T140006_029791_03657D_4FEF.SAFE
+            # ...
+
+        print('Matching filenames from ' + dirList + ' ...')
+
+        # Create reference list of directory satellite IDs and dates
+        refList = []
+        with open(dirList) as file:
+            for line in file:
+                refList.append([line[0:3], dt.datetime.strptime(line[17:25], '%Y%m%d')])
+
+        # Find filename for each aquisition in refList
+        downloadList = []
+
+        for file in refList:
+
+            for orbit in orbitList:
+                # Create string to validate with orbit filenames (does not include upload date)
+                searchStr = '_V' + (file[1] - dt.timedelta(days=1)).strftime('%Y%m%d') + 'T225942_' + (file[1] + dt.timedelta(days=1)).strftime('%Y%m%d') + 'T005942.EOF'
+
+                if searchStr in orbit:
+                    if file[0] in orbit:
+                        downloadList.append(orbit)
+                        print(file[0] + ' ' + file[1].strftime('%Y%m%d') + ': Matched')
+                        tag = 1
+
+            if tag == 1:
+                tag = 0
+            else:
+                # print('Orbit file not available for ' + file[0] + ' ' + file[1].strftime('%Y%m%d'))
+                print(file[0] + ' ' + file[1].strftime('%Y%m%d') + ': NO FILE FOUND')
+                tag = 0
+
+        return downloadList
+
+    def downloadOrbits(url, downloadList, saveDir):
+        """
+        Takes a list of URLS (see description for getOrbitURL) and downloads the appropriate files through the Sentinel-1  Quality Control data portal.
+        """
+
+        for file in downloadList:
+            print('Downloading ' + file + '...')
+            subprocess.call(['wget', url + "/" + file[25:29] + "/" + file[29:31] + "/" + file[31:33] + "/" + file], shell=False)
+
+    orbitList = getOrbitList(listURL)
+    downloadList = getOrbitURL(orbitList, dirList)
+    downloadOrbits(orbitURL, downloadList, saveDir)
+
+    return orbitList, downloadList
+
+
+# def getDEM():
+
+
+def getData(start, end, region, dir, subtype, framerange):
+    """
+    Download Sentinel-1 SAR data using Alaska Satellite Facility API
+    """
+    print()
+
+# -------------------- READING --------------------
+
+
+def readIntfTable(filename):
+    """
+    Read in interferogram metadata table
+    """
+
+    # Read specified file
+    intfTable = pd.read_csv(fileName, sep=' ', header=None)
+    intfTable.columns = ['Path', 'DateStr', 'Master', 'Repeat', 'TempBaseline', 'OrbitBaseline', 'MeanCorr']
+
+    # Convert date columns to datetime
+    intfTable['Master'] = pd.to_datetime(intfTable['Master'], format='%Y%m%d')
+    intfTable['Repeat'] = pd.to_datetime(intfTable['Repeat'], format='%Y%m%d')
+
+    # Display some lines
+    intfTable.head()
+
+    return intfTable
+
+
+# -------------------- WRITING --------------------
 def makeIntfTable(baselineTable, corrPaths, **kwargs):
     """
     Create Pandas DataFrame with interferogram metadata
@@ -124,25 +264,6 @@ def makeIntfTable(baselineTable, corrPaths, **kwargs):
     return intfTable, baselineTable
 
 
-def readIntfTable(filename):
-    """
-    Read in interferogram metadata table
-    """
-
-    # Read specified file
-    intfTable = pd.read_csv(fileName, sep=' ', header=None)
-    intfTable.columns = ['Path', 'DateStr', 'Master', 'Repeat', 'TempBaseline', 'OrbitBaseline', 'MeanCorr']
-
-    # Convert date columns to datetime
-    intfTable['Master'] = pd.to_datetime(intfTable['Master'], format='%Y%m%d')
-    intfTable['Repeat'] = pd.to_datetime(intfTable['Repeat'], format='%Y%m%d')
-
-    # Display some lines
-    intfTable.head()
-
-    return intfTable
-
-
 def filtIntfTable(intfTable, minMaster, maxMaster, minRepeat, maxRepeat, minTempBaseline, maxTempBaseline, minOrbitBaseline, maxOrbitBaseline, minMeanCorr, maxMeanCorr):
     """
     Filter interferogram table using input parameters
@@ -198,6 +319,190 @@ def getSceneTable(intfTable):
     sceneTable.columns = ['Date', 'TempBaseline', 'OrbitBaseline', 'MeanCorr', 'Count']
 
     return sceneTable
+
+
+# -------------------- ANALYSIS --------------------
+def selectIntfs(tablePath, method, tMin, tMax, **kwargs):
+    """
+    ========================== INPUTs: ==========================
+    tablePath - Path to baseline_table.dat generated by GMTSAR
+    method - 'sequential' for nth nearest neighbor pair(s) or 'baseline' for temporal baseline
+
+    If 'sequential' is selected:
+        tMin - minimum nearest-neighbor pair threshold
+        tMax - maximum nearest-neighbor pair threshold
+
+    If 'baseline' is selected:
+        tMin - minimum allowable temporal baseline (days)
+        tMax - maximum allowable temporal baseline (days)
+
+    Optional:
+    requiredDates -
+    # orbitMin - minimum allowable orbital baseline (m)
+    # orbitMax - maximum allowable orbital baseline (m)
+    plotMatrix - set to True to visualize interferogram pairs
+    printList - print intfIn to command line
+    writeList - write intfIn to file named 'intf.in'
+
+    ========================== OUTPUTS: ==========================
+        intfIn - list of interferogram pair filestems formatted for intf_tops.csh
+                 ex: 'S1_20141108_ALL_F2:S1_20150823_ALL_F2'
+
+
+    """
+    # Handle kwarg options
+
+    plotMatrix = False
+    printList = False
+    writeList = False
+
+    if 'plotMatrix' in kwargs:
+        plotMatrix = kwargs['plotMatrix']
+
+    if 'printList' in kwargs:
+        printList = kwargs['printList']
+
+    if 'writeList' in kwargs:
+        writeList = kwargs['writeList']
+
+    # Load data
+    pd.set_option('display.float_format', lambda x: '%f' % x)  # Display without exponential
+    baselineTable = pd.read_csv(tablePath, header=None, sep=' ')  # Read table
+    baselineTable.columns = ['Stem', 'numDate', 'sceneID', 'parBaseline', 'perpBaseline']
+    baselineTable['Dates'] = pd.to_datetime(baselineTable['Stem'].str.slice(start=15, stop=23))  # Scrape dates
+    baselineTable = baselineTable.sort_values(by='numDate')
+
+    N = len(baselineTable)  # Number of aquisitions
+    ID = np.zeros((N, N))  # Interferogram pair key matrix (1 to make intf, 0 for no intf)
+
+    # Print info
+    if method == 'sequential':
+        print('Creating list of {} to {} nearest-neighbor interferograms...'.format(tMin, tMax))
+
+    elif method == 'baseline':
+        print('Creating list of interferograms with baselines between {} to {} days...'.format(tMin, tMax))
+    else:
+        print("Please set method to 'sequential' or 'baseline'")
+        return
+
+    # Use input nearest-neighbor order range tMin and tMax to specify which interferogram keys to 'turn on'
+    for masterID, row in enumerate(ID):
+        for repeatID, value in enumerate(row):
+
+            # Select pairs based on specified method:
+            if method == 'sequential':
+
+                # If difference in numerical scene ID is within allowed range, mark as true
+                if abs(masterID - repeatID) != 0 and abs(masterID - repeatID) >= tMin and abs(masterID - repeatID) <= tMax:
+                    ID[masterID, repeatID] = 1
+
+            elif method == 'baseline':
+
+                # Get absolute value of perpendicular baseline
+                baseline = abs(baselineTable['perpBaseline'][repeatID] - baselineTable['perpBaseline'][masterID])
+
+                # If difference in temporal baseline is within allowed range, mark as true
+                if baseline >= tMin and baseline <= tMax:
+                    ID[masterID, repeatID] = 1
+
+    # Create master and repeat matricies of dimension N x N
+    Masters = np.array(list(baselineTable['Dates'])).repeat(N).reshape(N, N)
+    Repeats = np.array(list(baselineTable['Dates'])).repeat(N).reshape(N, N).T
+
+    # Loop through indicies to get pair dates
+    intfIn = []
+    for i in range(len(ID)):
+        for j in range(len(ID[0])):
+            if ID[i, j] == 1 and Masters[i, j] < Repeats[i, j]:  # We only want the lower half of the matrix, so ignore intf pairs where 'master' comes after 'repeat'
+                intfIn.append('S1_' + Masters[i, j].strftime('%Y%m%d') + '_ALL_F2:S1_' + Repeats[i, j].strftime('%Y%m%d') + '_ALL_F2')
+
+    # Get number of interferogams to make
+    n = len(intfIn)
+    print('Number of interferograms to be made: {}'.format(n))
+
+    # Print list
+    if printList == True:
+        for intf in intfIn:
+            print(intf)
+
+    # Plot interferogram matrix
+    if plotMatrix == True:
+        plt.rcParams['xtick.bottom'] = plt.rcParams['xtick.labelbottom'] = False
+        plt.rcParams['xtick.top'] = plt.rcParams['xtick.labeltop'] = True
+
+        # colors = ID
+
+        # for i in range(len(colors)):
+        #     for j in range(len(colors[0]))
+        #         if baselineTable['Stem'][i][2] == 'a':
+        #             colors
+
+        fig = plt.figure(1, (10, 10))
+        ax = plt.gca()
+        ax.imshow(ID, 'binary')
+        ax.set_ylabel('Master')
+        ax.set_title('Repeat', size=10)
+
+    # Write intfIn to file
+    if writeList == True:
+        print('Writing list of interferograms to intf.in')
+
+        with open('intf.in', 'w') as file:
+            for line in intfIn:
+                file.write(line + '\n')
+
+    return intfIn
+
+
+# -------------------- PLOTTING --------------------
+def plotNetwork(intfTable, baselineTable):
+    """
+    Make interferogram network/baseline plot
+    """
+    # Establish figure
+    fig = plt.figure(1, (15, 8))
+    ax = plt.gca()
+    master = intfTable['Master']
+    repeat = intfTable['Repeat']
+    mbl = []
+    rbl = []
+
+    # Get relative baselines
+    for i in range(len(intfTable)):
+
+        # Search baselineTable for master baseline
+        for j, namestr in enumerate(baselineTable[0]):
+            if intfTable['Master'][i].strftime('%Y%m%d') in namestr:
+                mbl.append(baselineTable[4][j])
+                break
+
+        # Search baselineTable for repeat baseline
+        for j, namestr in enumerate(baselineTable[0]):
+            if intfTable['Repeat'][i].strftime('%Y%m%d') in namestr:
+                rbl.append(baselineTable[4][j])
+                break
+
+    # Manualy set supermaster baseline
+    superbl = -48.578476
+
+    # Plot interferogram pairs as lines
+    for i in range(len(intfTable)):
+        plt.plot([master[i], repeat[i]], [mbl[i] - superbl, rbl[i] - superbl], 'k', lw=0.5)
+
+    # Plot scenes over pair lines
+    plt.scatter(master, np.array(mbl) - superbl, s=30, c='C0', zorder=3)
+    plt.scatter(repeat, np.array(rbl) - superbl, s=30, c='C0', zorder=3)
+
+    # Figure features
+
+    plt.grid(axis='x', zorder=1)
+    plt.xlim(min(master) - dt.timedelta(days=50), max(repeat) + dt.timedelta(days=50))
+    # plt.ylim(int(np.ceil((min(baselineTable[4]) - superbl - 50) / 50.0) ) * 50, int(np.floor((max(baselineTable[4]) - superbl + 50) / 50.0)) * 50)
+    plt.xlabel('Year')
+    plt.ylabel('Baseline relative to master (m)')
+    plt.show()
+
+    # return im
 
 
 def plotScenes(sceneTable, dataType, **kwargs):
@@ -301,60 +606,12 @@ def baselineCorrPlot(intfTable, **kwargs):
     # Make actual plot
     for i in range(len(intfTable)):
         lineColor = np.floor(intfTable['OrbitBaseline'][i]) / n
-        ax.plot([intfTable['Master'][i], intfTable['Repeat'][i]], [intfTable['MeanCorr'][i], intfTable['MeanCorr'][i]], color=cmap(lineColor))
+        im = ax.plot([intfTable['Master'][i], intfTable['Repeat'][i]], [intfTable['MeanCorr'][i], intfTable['MeanCorr'][i]], color=cmap(lineColor))
 
     return im
 
 
-def plotNetwork(intfTable, baselineTable):
-    """
-    Make interferogram network/baseline plot
-    """
-    # Establish figure
-    fig = plt.figure(1, (15, 8))
-    ax = plt.gca()
-    master = intfTable['Master']
-    repeat = intfTable['Repeat']
-    mbl = []
-    rbl = []
-
-    # Get relative baselines
-    for i in range(len(intfTable)):
-
-        # Search baselineTable for master baseline
-        for j, namestr in enumerate(baselineTable[0]):
-            if intfTable['Master'][i].strftime('%Y%m%d') in namestr:
-                mbl.append(baselineTable[4][j])
-                break
-
-        # Search baselineTable for repeat baseline
-        for j, namestr in enumerate(baselineTable[0]):
-            if intfTable['Repeat'][i].strftime('%Y%m%d') in namestr:
-                rbl.append(baselineTable[4][j])
-                break
-
-    # Manualy set supermaster baseline
-    superbl = -48.578476
-
-    # Plot interferogram pairs as lines
-    for i in range(len(intfTable)):
-        plt.plot([master[i], repeat[i]], [mbl[i] - superbl, rbl[i] - superbl], 'k', lw=0.5)
-
-    # Plot scenes over pair lines
-    plt.scatter(master, np.array(mbl) - superbl, s=30, c='C0', zorder=3)
-    plt.scatter(repeat, np.array(rbl) - superbl, s=30, c='C0', zorder=3)
-
-    # Figure features
-
-    plt.grid(axis='x', zorder=1)
-    plt.xlim(min(master) - dt.timedelta(days=50), max(repeat) + dt.timedelta(days=50))
-    # plt.ylim(int(np.ceil((min(baselineTable[4]) - superbl - 50) / 50.0) ) * 50, int(np.floor((max(baselineTable[4]) - superbl + 50) / 50.0)) * 50)
-    plt.xlabel('Year')
-    plt.ylabel('Baseline relative to master (m)')
-    plt.show()
-
-    return im
-
+# -------------------- DRIVERS --------------------
 
 def analyzeCatalog(sceneTable, intfTable):
     """
