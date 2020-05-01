@@ -129,18 +129,32 @@ def getData(start, end, region, dir, subtype, framerange):
 # -------------------- READING --------------------
 
 
-def readIntfTable(filename):
+def readBaselineTable(fileName):
+    """
+    Read in baseline table from GMTSAR
+    """
+
+    baselineTable = pd.read_csv(fileName, header=None, sep=' ')  # Read table
+    baselineTable.columns = ['Stem', 'numDate', 'sceneID', 'parBaseline', 'OrbitBaseline']
+    baselineTable['Dates'] = pd.to_datetime(baselineTable['Stem'].str.slice(start=15, stop=23))  # Scrape dates
+    baselineTable = baselineTable.sort_values(by='numDate')
+    baselineTable = baselineTable.reset_index(drop=True)
+
+    return baselineTable
+
+
+def readIntfTable(fileName):
     """
     Read in interferogram metadata table
     """
 
     # Read specified file
-    intfTable = pd.read_csv(fileName, sep=' ', header=None)
+    intfTable = pd.read_csv(fileName, sep=' ', header=0)
     intfTable.columns = ['Path', 'DateStr', 'Master', 'Repeat', 'TempBaseline', 'OrbitBaseline', 'MeanCorr']
 
     # Convert date columns to datetime
-    intfTable['Master'] = pd.to_datetime(intfTable['Master'], format='%Y%m%d')
-    intfTable['Repeat'] = pd.to_datetime(intfTable['Repeat'], format='%Y%m%d')
+    intfTable['Master'] = pd.to_datetime(intfTable['Master'], format='%Y-%m-%d')
+    intfTable['Repeat'] = pd.to_datetime(intfTable['Repeat'], format='%Y-%m-%d')
 
     # Display some lines
     intfTable.head()
@@ -321,6 +335,29 @@ def getSceneTable(intfTable):
     return sceneTable
 
 
+#  -------------------- COMPATABILITY --------------------
+
+def convertIntfIn(intf_in, desired_format):
+    """
+    Convert GMTSAR formatted intf.in file to directory list, vice-versa
+    Examples:
+        desiredFormat = 'dir': S1_20141108_ALL_F2:S1_20141202_ALL_F2 => 2014311_2014335
+        desiredFormat = 'intf.in': 2014311_2014335 => S1_20141108_ALL_F2:S1_20141202_ALL_F2
+    """
+    if desired_format == 'dir':
+        new_list = []
+        for line in intf_in:
+            new_list.append((dt.datetime.strptime(line[3:11], '%Y%m%d') - dt.timedelta(days=1)).strftime('%Y%j') + '_' + (dt.datetime.strptime(line[22:30], '%Y%m%d') - dt.timedelta(days=1)).strftime('%Y%j'))
+            print(new_list[-1])
+
+    elif desired_format == 'intf.in':
+        for line in intf_in:
+            new_list.append((dt.datetime.strptime(line[3:11], '%Y%m%d') - dt.timedelta(days=1)).strftime('%Y%j') + '_' + (dt.datetime.strptime(line[22:30], '%Y%m%d') - dt.timedelta(days=1)).strftime('%Y%j'))
+            print(new_list[-1])
+
+    return new_list
+
+
 # -------------------- ANALYSIS --------------------
 def selectIntfs(tablePath, method, tMin, tMax, **kwargs):
     """
@@ -347,7 +384,7 @@ def selectIntfs(tablePath, method, tMin, tMax, **kwargs):
     ========================== OUTPUTS: ==========================
         intfIn - list of interferogram pair filestems formatted for intf_tops.csh
                  ex: 'S1_20141108_ALL_F2:S1_20150823_ALL_F2'
-
+        plotIn - input DataFrame for plotNetwork. Contains 'Master' and 'Repeat' columns
 
     """
     # Handle kwarg options
@@ -420,6 +457,11 @@ def selectIntfs(tablePath, method, tMin, tMax, **kwargs):
     n = len(intfIn)
     print('Number of interferograms to be made: {}'.format(n))
 
+    # Output dataframe instead
+    plotIn = pd.DataFrame()
+    plotIn['Master'] = [dt.datetime.strptime(date[3:11], '%Y%m%d') for date in intfIn]
+    plotIn['Repeat'] = [dt.datetime.strptime(date[22:30], '%Y%m%d') for date in intfIn]
+
     # Print list
     if printList == True:
         for intf in intfIn:
@@ -451,16 +493,16 @@ def selectIntfs(tablePath, method, tMin, tMax, **kwargs):
             for line in intfIn:
                 file.write(line + '\n')
 
-    return intfIn
+    return intfIn, plotIn
 
 
 # -------------------- PLOTTING --------------------
-def plotNetwork(intfTable, baselineTable):
+def plotNetwork(intfTable, baselineTable, **kwargs):
     """
     Make interferogram network/baseline plot
     """
     # Establish figure
-    fig = plt.figure(1, (15, 8))
+    fig = plt.figure(1, (20, 10))
     ax = plt.gca()
     master = intfTable['Master']
     repeat = intfTable['Repeat']
@@ -471,15 +513,15 @@ def plotNetwork(intfTable, baselineTable):
     for i in range(len(intfTable)):
 
         # Search baselineTable for master baseline
-        for j, namestr in enumerate(baselineTable[0]):
+        for j, namestr in enumerate(baselineTable['Stem']):
             if intfTable['Master'][i].strftime('%Y%m%d') in namestr:
-                mbl.append(baselineTable[4][j])
+                mbl.append(baselineTable['OrbitBaseline'][j])
                 break
 
         # Search baselineTable for repeat baseline
-        for j, namestr in enumerate(baselineTable[0]):
+        for j, namestr in enumerate(baselineTable['Stem']):
             if intfTable['Repeat'][i].strftime('%Y%m%d') in namestr:
-                rbl.append(baselineTable[4][j])
+                rbl.append(baselineTable['OrbitBaseline'][j])
                 break
 
     # Manualy set supermaster baseline
@@ -487,14 +529,19 @@ def plotNetwork(intfTable, baselineTable):
 
     # Plot interferogram pairs as lines
     for i in range(len(intfTable)):
-        plt.plot([master[i], repeat[i]], [mbl[i] - superbl, rbl[i] - superbl], 'k', lw=0.5)
+        plt.plot([master[i], repeat[i]], [mbl[i] - superbl, rbl[i] - superbl], c='k', lw=0.5)
 
     # Plot scenes over pair lines
-    plt.scatter(master, np.array(mbl) - superbl, s=30, c='C0', zorder=3)
-    plt.scatter(repeat, np.array(rbl) - superbl, s=30, c='C0', zorder=3)
+    if 'sceneTable' in kwargs:
+        sceneTable = kwargs['sceneTable']
+        im = plt.scatter(baselineTable['Dates'], baselineTable['OrbitBaseline'].subtract(superbl), s=30, c=sceneTable['MeanCorr'], zorder=3, cmap='Spectral_r', vmin=0, vmax=1)
+        plt.colorbar(im, label='Mean coherence')
+
+    else:
+        plt.scatter(master, np.array(mbl) - superbl, s=30, c='C0', zorder=3)
+        plt.scatter(repeat, np.array(rbl) - superbl, s=30, c='C0', zorder=3)
 
     # Figure features
-
     plt.grid(axis='x', zorder=1)
     plt.xlim(min(master) - dt.timedelta(days=50), max(repeat) + dt.timedelta(days=50))
     # plt.ylim(int(np.ceil((min(baselineTable[4]) - superbl - 50) / 50.0) ) * 50, int(np.floor((max(baselineTable[4]) - superbl + 50) / 50.0)) * 50)
@@ -502,7 +549,10 @@ def plotNetwork(intfTable, baselineTable):
     plt.ylabel('Baseline relative to master (m)')
     plt.show()
 
-    # return im
+    if 'figName' in kwargs:
+        print('Saving to {}...'.format(kwargs['figName']))
+        fig.savefig(kwargs['figName'] + '.eps')
+        plt.close()
 
 
 def plotScenes(sceneTable, dataType, **kwargs):
@@ -549,7 +599,7 @@ def plotScenes(sceneTable, dataType, **kwargs):
     im = ax.scatter(sceneTable['Date'], normData, c=sceneTable['Count'])
 
     # Get tick labels that correspond with original data
-    ticks = np.linspace(0, np.ceil(sceneTable[dataType].max()), 5)
+    ticks = np.linspace(0, np.round(np.ceil(sceneTable[dataType].max()), 1), 5)
     ax.set_yticks(np.linspace(0, 1, 5))
     ax.set_yticklabels(ticks)
 
@@ -624,7 +674,7 @@ def analyzeCatalog(sceneTable, intfTable):
                      axes_pad=.65,
                      aspect=False,
                      cbar_mode='each',
-                     cbar_location='top',
+                     cbar_location='right',
                      cbar_pad=0,
                      cbar_size='2.5%',
                      share_all=False
@@ -634,3 +684,17 @@ def analyzeCatalog(sceneTable, intfTable):
     baselineCorrPlot(intfTable, ax=grid[1], cax=grid.cbar_axes[1])
     plotScenes(sceneTable, 'TempBaseline', ax=grid[2], cax=grid.cbar_axes[2])
     plotScenes(sceneTable, 'OrbitBaseline', ax=grid[3], cax=grid.cbar_axes[3])
+
+
+if __name__ == "__main__":
+    # Generate interferogram table for dataset
+    baselineTableFile = '/Users/ellisvavra/Desktop/LongValley/LV-InSAR/baseline_table_des.dat'
+    intfTableFile = '/Users/ellisvavra/Desktop/LongValley/LV-InSAR/intf_table_NN10.dat'
+
+    # Load files
+    baselineTable = readBaselineTable(baselineTableFile)
+    intfTable = readIntfTable(intfTableFile)
+    sceneTable = getSceneTable(intfTable)
+
+    # Make Network plot
+    plotNetwork(intfTable, baselineTable, sceneTable=sceneTable, figName='network_plot_NN10')
