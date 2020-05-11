@@ -133,6 +133,8 @@ def readBaselineTable(fileName):
     """
     Read in baseline table from GMTSAR
     """
+    print('Reading baseline table...')
+    print()
 
     baselineTable = pd.read_csv(fileName, header=None, sep=' ')  # Read table
     baselineTable.columns = ['Stem', 'numDate', 'sceneID', 'parBaseline', 'OrbitBaseline']
@@ -147,6 +149,8 @@ def readIntfTable(fileName):
     """
     Read in interferogram metadata table
     """
+    print('Reading interferogram table...')
+    print()
 
     # Read specified file
     intfTable = pd.read_csv(fileName, sep=' ', header=0)
@@ -156,8 +160,14 @@ def readIntfTable(fileName):
     intfTable['Master'] = pd.to_datetime(intfTable['Master'], format='%Y-%m-%d')
     intfTable['Repeat'] = pd.to_datetime(intfTable['Repeat'], format='%Y-%m-%d')
 
+    # Convert numpy.float64 to float
+    # orbitBaseline = intfTable['OrbitBaseline']
+    # meanCorr = intfTable['MeanCorr']
+    # intfTable['OrbitBaseline'] = [np.float64(bl).item() for bl in orbitBaseline]
+    # intfTable['MeanCorr'] = [np.float64(c).item() for c in meanCorr]
+
     # Display some lines
-    intfTable.head()
+    # intfTable.head()
 
     return intfTable
 
@@ -311,26 +321,57 @@ def filtIntfTable(intfTable, minMaster, maxMaster, minRepeat, maxRepeat, minTemp
 
 def getSceneTable(intfTable):
     """
+    Generate table with information about each SAR aqquisition based off of input interferogram catalog.
 
+    FIELDS:
+    Date - acquisition date
+    TempBaseline - mean temporal baseline of all interferograms using scene
+    OrbitBaseline - mean orbital baseline of all interferograms using scene
+    MeanCorr - mean coherence of all interferograms using scene
+    TotalCount - number of interferograms using scene
+    MasterCount - number of interferograms using scene as a master
+    RepeatCount - number of interferograms using scene as a repeat
+    Masters - list of interferograms using scene as a master
+    Repeats - list of interferograms using scene as a repeat
     """
+    print('Getting scene information...')
+    print()
+
     # Cut out master/Repeat and coherence columns for concatenating
     df1 = intfTable[['Master', 'TempBaseline', 'OrbitBaseline', 'MeanCorr']]
     df1.columns = ['Scene', 'TempBaseline', 'OrbitBaseline', 'MeanCorr']
     df2 = intfTable[['Repeat', 'TempBaseline', 'OrbitBaseline', 'MeanCorr']]
     df2.columns = ['Scene', 'TempBaseline', 'OrbitBaseline', 'MeanCorr']
-
-    # Combine interferogram columns
+    # Combine interferogram table columns
     df3 = pd.concat([df1, df2])
+
+    # Aggregate lists of master/repeat interferograms
+    masters = intfTable.set_index('Master', append='True').groupby(level=[0,1], sort=False)['DateStr'].apply(list).reset_index('Master').groupby('Master')['DateStr'].apply(list).reset_index('Master')
+    masters.columns = ['Scene', 'Masters']
+    repeats = intfTable.set_index('Repeat', append='True').groupby(level=[0,1], sort=False)['DateStr'].apply(list).reset_index('Repeat').groupby('Repeat')['DateStr'].apply(list).reset_index('Repeat')
+    repeats.columns = ['Scene', 'Repeats']
+
+    # Account for start/end scenes not having repeat/master instances
+    masters = masters.append({'Scene': repeats['Scene'].iloc[-1], 'Masters': []}, ignore_index=True)
+    repeats = repeats.sort_values(by='Scene', ascending=False).append({'Scene': masters['Scene'].iloc[0], 'Repeats': []}, ignore_index=True).sort_values(by='Scene').reset_index(drop=True)
 
     # Get mean scene coherence and intf counts
     time = df3.groupby('Scene')['TempBaseline'].mean()
     orbit = df3.groupby('Scene')['OrbitBaseline'].mean()
     corr = df3.groupby('Scene')['MeanCorr'].mean()
-    counts = df3.groupby('Scene').count()['MeanCorr']
+    totalcounts = df3.groupby('Scene').count()['MeanCorr']
+
+    # Merge everything together
     sceneTable = pd.merge(time, orbit, how='inner', on='Scene')
     sceneTable = pd.merge(sceneTable, corr, how='inner', on='Scene')
-    sceneTable = pd.merge(sceneTable, counts, how='inner', on='Scene').reset_index()
-    sceneTable.columns = ['Date', 'TempBaseline', 'OrbitBaseline', 'MeanCorr', 'Count']
+    sceneTable = pd.merge(sceneTable, totalcounts, how='inner', on='Scene').reset_index()
+    sceneTable['MasterCount'] = [len(intfList) for intfList in masters['Masters']]
+    sceneTable['RepeatCount'] = [len(intfList) for intfList in repeats['Repeats']]
+    sceneTable = pd.merge(sceneTable, masters, how='inner', on='Scene')
+    sceneTable = pd.merge(sceneTable, repeats, how='inner', on='Scene')
+    sceneTable.columns = ['Date', 'TempBaseline', 'OrbitBaseline', 'MeanCorr', 'TotalCount',
+                          'MasterCount', 'RepeatCount', 'Masters', 'Repeats']
+
 
     return sceneTable
 
@@ -496,7 +537,29 @@ def selectIntfs(tablePath, method, tMin, tMax, **kwargs):
     return intfIn, plotIn
 
 
+def addOrder(intfTable, baselineTable):
+    """
+    Calulate and append "nearest neighbor order" to each interferogram in intfTable.
+    For example, if 20191202 is the 1st available aquisition and 20200312 is the 5th,
+    then 20191202_20200312 is a 4th-order interferogram.
+    """
+    order = []
+
+    for i in range(len(intfTable)):
+        # Get indicies of scenes in intf
+        mi = baselineTable[baselineTable['Dates'] == intfTable['Master'][i]].index
+        ri = baselineTable[baselineTable['Dates'] == intfTable['Repeat'][i]].index
+        order.append((ri - mi)[0])
+
+    # Append column to imnput intfTable
+    newIntfTable = intfTable
+    newIntfTable['Order'] = order
+
+    return newIntfTable
+
 # -------------------- PLOTTING --------------------
+
+
 def plotNetwork(intfTable, baselineTable, **kwargs):
     """
     Make interferogram network/baseline plot
