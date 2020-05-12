@@ -382,6 +382,7 @@ def getSceneTable(intfTable):
     Masters - list of interferograms using scene as a master
     Repeats - list of interferograms using scene as a repeat
     """
+
     print('Getting scene information...')
     print()
 
@@ -390,6 +391,7 @@ def getSceneTable(intfTable):
     df1.columns = ['Scene', 'TempBaseline', 'OrbitBaseline', 'MeanCorr']
     df2 = intfTable[['Repeat', 'TempBaseline', 'OrbitBaseline', 'MeanCorr']]
     df2.columns = ['Scene', 'TempBaseline', 'OrbitBaseline', 'MeanCorr']
+
     # Combine interferogram table columns
     df3 = pd.concat([df1, df2])
 
@@ -401,8 +403,17 @@ def getSceneTable(intfTable):
     repeats.columns = ['Scene', 'Repeats']
 
     # Account for start/end scenes not having repeat/master instances
-    masters = masters.append({'Scene': repeats['Scene'].iloc[-1], 'Masters': []}, ignore_index=True)
-    repeats = repeats.sort_values(by='Scene', ascending=False).append({'Scene': masters['Scene'].iloc[0], 'Repeats': []}, ignore_index=True).sort_values(by='Scene').reset_index(drop=True)
+    for date in repeats['Scene']:
+        if date not in list(masters['Scene']):
+            masters = masters.append({'Scene': date, 'Masters': []}, ignore_index=True)
+
+    for date in masters['Scene']:
+        if date not in list(repeats['Scene']):
+            repeats = repeats.append({'Scene': date, 'Repeats': []}, ignore_index=True)
+
+    # Reset indicies in date-ascending order
+    masters = masters.sort_values('Scene').reset_index(drop=True)
+    repeats = repeats.sort_values('Scene').reset_index(drop=True)
 
     # Get mean scene coherence and intf counts
     time = df3.groupby('Scene')['TempBaseline'].mean()
