@@ -3,6 +3,7 @@ import glob as glob
 import matplotlib.pyplot as plt
 import netCDF4 as nc
 import numpy as np
+import pandas as pd
 from PyGMTSAR import addOrder
 from PyGMTSAR import filtIntfTable
 from PyGMTSAR import getSceneTable
@@ -13,23 +14,86 @@ from mpl_toolkits.axes_grid1 import ImageGrid
 
 # ----------- DRIVERS ----------
 def driver():
-    # Read metadata
-    # baselineTableFile = '/Users/ellisvavra/Desktop/LongValley/LV-InSAR/baseline_table_des.dat'
-    # intfTableFile = '/Users/ellisvavra/Desktop/LongValley/LV-InSAR/intf_table_NN15.dat'
-    # pathStem = '/Users/ellisvavra/Desktop/LongValley/Tests/des/intf_all/'
-    # baselineTable = readBaselineTable(baselineTableFile)
-    # intfTable = readIntfTable(intfTableFile)
-    # intfTable = addOrder(intfTable, baselineTable)
+    # ---------- Make APS estimates ----------
 
-    intf_path = '/Users/ellisvavra/Desktop/LongValley/Tests/des/intf_all/2014311_2014335/'
+    # SETTINGS
+    units = 'cm'
+
+    # Read metadata
+    baselineTableFile = '/Users/ellisvavra/Desktop/LongValley/LV-InSAR/baseline_table_des.dat'
+    intfTableFile = '/Users/ellisvavra/Desktop/LongValley/LV-InSAR/intf_table_NN15.dat'
+    baselineTable = readBaselineTable(baselineTableFile)
+    intfTable = readIntfTable(intfTableFile)
+    intfTable = addOrder(intfTable, baselineTable)
+
+    # OPTIONAL: select interferograms to use in CSS based off of baseline, order,
+    maxOrder = 10
+    intfTable = intfTable[intfTable['Order'] <= maxOrder].reset_index(drop=True)
+
+    print('Number of interferograms to use: ' + str(len(intfTable)))
+    print()
+
+    # Get individual scene information
+    sceneTable = getSceneTable(intfTable)
+
+    # Perform CSS
+    apsTable = css(sceneTable, intfTable, '/Users/ellisvavra/Desktop/LongValley/Tests/des/intf_all/', 2, 6)
+
+    # ---------- Correct intfs and plot ----------
+    # Load intf
+    intf_path = '/Users/ellisvavra/Desktop/LongValley/Tests/des/intf_all/2019225_2019231/'
     temp = nc.Dataset(intf_path + '/unwrap.grd', 'r+', format='NETCDF4')
     intf = np.array(temp.variables['z'])
     temp.close()
+    intf_m = rad2m(intf, units=units)  # Convert to m
 
-    intf_m = rad2m(13.2860, units='m')
+    # Search apsTable for APS corrections corresponding to specified intf
+    m_aps = apsTable[['2019225_2019231' in intfList for intfList in apsTable['Masters']]]['APS'].iloc[0]
+    r_aps = apsTable[['2019225_2019231' in intfList for intfList in apsTable['Repeats']]]['APS'].iloc[0]
 
-    # plt.hist(intf_m, bins=100)
-    # plt.show()
+    m_date = intfTable[['2019225_2019231' in datestr for datestr in intfTable['DateStr']]]['Master'].iloc[0]
+    r_date = intfTable[['2019225_2019231' in datestr for datestr in intfTable['DateStr']]]['Repeat'].iloc[0]
+
+    m_balance = apsTable[['2019225_2019231' in intfList for intfList in apsTable['Masters']]]['Balance'].iloc[0]
+    r_balance = apsTable[['2019225_2019231' in intfList for intfList in apsTable['Repeats']]]['Balance'].iloc[0]
+    balance = r_balance - m_balance
+
+    # Get aggregated APS
+    aps = r_aps - m_aps
+    aps_m = rad2m(aps, units=units)  # Convert to m
+
+    # Apply correction and convert to m
+    corrected = intf_m - aps_m
+
+    # Set up figure
+    fig = plt.figure(1, (13.8, 6))
+    fig.suptitle('Dates: ' + m_date.strftime('%Y/%m/%d') + ' - ' + r_date.strftime('%Y/%m/%d') + ', Order: ' + str(maxOrder) + ', Balance: ' + str(balance))
+    grid = ImageGrid(fig, 111,
+                     nrows_ncols=(1, 3),
+                     axes_pad=0.,
+                     share_all=True,
+                     aspect=1,
+                     cbar_mode='single'
+                     )
+
+    im = grid[0].imshow(intf_m)
+    im = grid[1].imshow(aps_m)
+    im = grid[2].imshow(corrected)
+    grid[0].text(len(intf_m[0]) - 30, len(intf_m) - 50, 'RMS = {}'.format(np.round(rms(intf_m), 2)),
+                 bbox=dict(facecolor='white', edgecolor='black', alpha=1))
+    # grid[1].text(len(intf_m[0]) - 30, len(intf_m) - 50, 'RMS = {}'.format(np.round(rms(aps_m), 2)),
+                 # bbox=dict(facecolor='white', edgecolor='black', alpha=1))
+    grid[2].text(len(intf_m[0]) - 30, len(intf_m) - 50, 'RMS = {}'.format(np.round(rms(corrected), 2)),
+                 bbox=dict(facecolor='white', edgecolor='black', alpha=1))
+    grid[0].set_title('Original interferogram')
+    grid[1].set_title('Estimated APS')
+    grid[2].set_title('Corrected interferogram')
+    grid[0].invert_xaxis()
+    grid[1].invert_xaxis()
+    grid[2].invert_xaxis()
+    plt.colorbar(im, label='LOS change ({})'.format(units), cax=grid.cbar_axes[0])
+    plt.show()
+
 
 def plot_all_driver():
 
@@ -148,6 +212,23 @@ def plot_all_driver():
 # ---------- CALCULATIONS ----------
 
 
+def rms(data):
+    """
+    Calculate root-mean-square (RMS) for Numpy array.
+
+    INPUT:
+    apsList - list containing atmospheric phase screen estimates
+
+    OUTPUT:
+    ancList - list of atmospheric noise coefficients
+    """
+
+    data_corrected = data.flatten()[np.isnan(data.flatten()) == False]
+    rms = np.sqrt(np.sum((data_corrected - np.mean(data_corrected))**2) / (len(data.flatten())))
+
+    return rms
+
+
 def anc(apsList):
     """
     Calculate atmosphereic noise coefficients (ANC) for input InSAR scenes.
@@ -254,7 +335,7 @@ def m2rad(data_m, **kwargs):
 
 
 # ---------- ANALYSIS ----------
-def css(sceneTable, intfTable, pathStem, stack_min, stack_max):
+def css(sceneTable, intfTable, pathStem, stack_min, stack_max, **kwargs):
     """
     Perform common scene stacking for input list of scenes and interferograms.
 
@@ -280,63 +361,68 @@ def css(sceneTable, intfTable, pathStem, stack_min, stack_max):
 
     APS = []
     balance = []
+    masters = []
+    repeats = []
 
     for i, date in enumerate(sceneTable['Date']):
 
+        tempMasters = []
+        tempMasterDays = []
+        tempRepeats = []
+        tempRepeatDays = []
+
+        # Get list of intfs containing date
+        for j in range(len(intfTable)):
+            if date == intfTable['Master'][j]:
+                tempMasters.append(intfTable['DateStr'][j])
+                tempMasterDays.append(intfTable['TempBaseline'][j])
+            elif date == intfTable['Repeat'][j]:
+                tempRepeats.append(intfTable['DateStr'][j])
+                tempRepeatDays.append(intfTable['TempBaseline'][j])
+
         # Pass on dates that don't satisfy the input parameters
-        if sceneTable['Count'][i] < stack_min:
-            print('Skipping ' + date.strftime('%Y%m%d') + ', only used in {} interferograms'.format(sceneTable['Count'][i]))
+        # if sceneTable['Count'][i] < stack_min:
+        if sceneTable['TotalCount'][i] < stack_min:
+            print('Skipping ' + date.strftime('%Y%m%d') + ', only used in {} interferograms'.format(sceneTable['TotalCount'][i]))
             APS.append(False)
             balance.append(np.nan)
+            masters.append(tempMasters)
+            repeats.append(tempRepeats)
 
         else:
-            # print('Getting list of interferograms using ' + date.strftime('%Y%m%d'))
-
-            masters = []
-            masterDays = []
-            repeats = []
-            repeatDays = []
-
-            # Get list of intfs containing date
-            for j in range(len(intfTable)):
-                if date == intfTable['Master'][j]:
-                    masters.append(intfTable['DateStr'][j])
-                    masterDays.append(intfTable['TempBaseline'][j])
-                elif date == intfTable['Repeat'][j]:
-                    repeats.append(intfTable['DateStr'][j])
-                    repeatDays.append(intfTable['TempBaseline'][j])
-
             # Do actual stacking
-            print('Estmating APS on ' + date.strftime('%Y%m%d') + '...')
+            if 'verb' in kwargs:
+                if kwargs['verb'] == True:
+                    print('Estmating APS on ' + date.strftime('%Y%m%d') + '...')
+            else:
+                print('Estmating APS on ' + date.strftime('%Y%m%d') + '...')
 
             # Initiate array using dimensions from first intf
-
-            temp = nc.Dataset(pathStem + (masters + repeats)[0] + '/unwrap.grd', 'r+', format='NETCDF4')
-            aps = np.zeros((temp.dimensions['y'].size, temp.dimensions['x'].size))
+            temp = nc.Dataset(pathStem + (tempMasters + tempRepeats)[0] + '/unwrap.grd', 'r+', format='NETCDF4')
+            tempAPS = np.zeros((temp.dimensions['y'].size, temp.dimensions['x'].size))
             temp.close()
 
             # Sum together repeat instances
-            for array in repeats:
+            for array in tempRepeats:
                 temp = nc.Dataset(pathStem + array + '/unwrap.grd', 'r+', format='NETCDF4')
-                aps += np.array(temp.variables['z'])
+                tempAPS += np.array(temp.variables['z'])
                 temp.close()
 
             # Then difference master instances
-            for array in masters:
+            for array in tempMasters:
                 temp = nc.Dataset(pathStem + array + '/unwrap.grd', 'r+', format='NETCDF4')
-                aps -= np.array(temp.variables['z'])
+                tempAPS -= np.array(temp.variables['z'])
                 temp.close()
 
-            aps /= (len(masters) + len(repeats))
+            tempAPS /= (len(tempMasters) + len(tempRepeats))
 
-            APS.append(aps)
-            balance.append(sum(repeatDays) - sum(masterDays))
-
-            # Determine APS balance
-            # print('Balance score: {} days'.format(balance[-1]))
+            APS.append(tempAPS)
+            balance.append(sum(tempRepeatDays) - sum(tempMasterDays))
+            masters.append(tempMasters)
+            repeats.append(tempRepeats)
 
     # Retroactively assign blank APS to dates with not enough available interferograms
-    temp = nc.Dataset(pathStem + repeats[0] + '/unwrap.grd', 'r+', format='NETCDF4')
+    temp = nc.Dataset(pathStem + tempRepeats[0] + '/unwrap.grd', 'r+', format='NETCDF4')
     blank_aps = np.zeros((temp.dimensions['y'].size, temp.dimensions['x'].size))
     temp.close()
 
@@ -344,7 +430,13 @@ def css(sceneTable, intfTable, pathStem, stack_min, stack_max):
         if aps is False:
             APS[i] = blank_aps
 
-    return APS, balance
+    apsTable = pd.DataFrame()
+    apsTable['APS'] = APS
+    apsTable['Balance'] = balance
+    apsTable['Masters'] = masters
+    apsTable['Repeats'] = repeats
+
+    return apsTable
 
 
 # ---------- PLOTS ----------
