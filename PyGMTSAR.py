@@ -288,7 +288,55 @@ def makeIntfTable(baselineTable, corrPaths, **kwargs):
     return intfTable, baselineTable
 
 
-def filtIntfTable(intfTable, minMaster, maxMaster, minRepeat, maxRepeat, minTempBaseline, maxTempBaseline, minOrbitBaseline, maxOrbitBaseline, minMeanCorr, maxMeanCorr):
+def filtIntfTable(intfTable, **kwargs):
+    """
+    Filter interferogram table using input parameters
+    ---- INPUT ----------------------------------------------
+    intfTable - input interferogram table
+
+    Kwargs:
+    - Keys should be column names of intfTable.
+    - Arguments should be lists containing minimum/maximum values.
+        Master - min/max interferogram master date
+        Repeat - min/max interferogram Repeat date
+        TempBaseline - min/max temporal baseline length (days)
+        OrbitBaseline - min/max temporal baseline length (m)
+        MeanCorr - min/max mean intereferogram coherence
+
+    ---- OUTPUT ---------------------------------------------
+        filtIntfTable - table of interferograms meeting specified input parameters
+
+    ---- EXAMPLE --------------------------------------------
+    filtIntfTable = filtIntfTable(intfTable, Master=[dt.datetime(2014,1,1,0,0,0), dt.datetime(2021,1,1,0,0,0)],
+                                Repeat=[dt.datetime(2014,1,1,0,0,0), dt.datetime(2021,1,1,0,0,0)],
+                                TempBaseline=[0, 10**10],
+                                OrbitBaseline=[-1000, 1000],
+                                MeanCorr=[0, 1],
+                                Order=[1, 100])
+    """
+    filtIntfTable = intfTable
+
+    print('Filtering with following constraints:')
+
+    for arg in kwargs:
+        # Print message
+        print('{}: {} to {}'.format(arg, kwargs[arg][0], kwargs[arg][1]))
+        # Perform filtering
+        filtIntfTable = filtIntfTable[(intfTable[arg] >= kwargs[arg][0]) &
+                                      (intfTable[arg] <= kwargs[arg][1])]
+
+    # Reset index to 0,1,2,..., n-1
+    filtIntfTable = filtIntfTable.reset_index(drop=True)
+
+    # Print
+    print()
+    print('{} interferograms selected'.format(len(filtIntfTable)))
+    print()
+
+    return filtIntfTable
+
+
+def filtIntfTable_OLD(intfTable, minMaster, maxMaster, minRepeat, maxRepeat, minTempBaseline, maxTempBaseline, minOrbitBaseline, maxOrbitBaseline, minMeanCorr, maxMeanCorr):
     """
     Filter interferogram table using input parameters
     ---- INPUT ----------------------------------------------
@@ -345,10 +393,11 @@ def getSceneTable(intfTable):
     # Combine interferogram table columns
     df3 = pd.concat([df1, df2])
 
-    # Aggregate lists of master/repeat interferograms
-    masters = intfTable.set_index('Master', append='True').groupby(level=[0,1], sort=False)['DateStr'].apply(list).reset_index('Master').groupby('Master')['DateStr'].apply(list).reset_index('Master')
+    # Aggregate lists of master/repeat interferograms. So sorry for the horrible stacked Dataframe methods.
+    masters = intfTable.set_index('Master', append='True').groupby(level=[0, 1], sort=False)['DateStr'].apply(list).reset_index('Master').groupby('Master')['DateStr'].apply(list).reset_index('Master')
     masters.columns = ['Scene', 'Masters']
-    repeats = intfTable.set_index('Repeat', append='True').groupby(level=[0,1], sort=False)['DateStr'].apply(list).reset_index('Repeat').groupby('Repeat')['DateStr'].apply(list).reset_index('Repeat')
+
+    repeats = intfTable.set_index('Repeat', append='True').groupby(level=[0, 1], sort=False)['DateStr'].apply(list).reset_index('Repeat').groupby('Repeat')['DateStr'].apply(list).reset_index('Repeat')
     repeats.columns = ['Scene', 'Repeats']
 
     # Account for start/end scenes not having repeat/master instances
@@ -371,7 +420,6 @@ def getSceneTable(intfTable):
     sceneTable = pd.merge(sceneTable, repeats, how='inner', on='Scene')
     sceneTable.columns = ['Date', 'TempBaseline', 'OrbitBaseline', 'MeanCorr', 'TotalCount',
                           'MasterCount', 'RepeatCount', 'Masters', 'Repeats']
-
 
     return sceneTable
 
