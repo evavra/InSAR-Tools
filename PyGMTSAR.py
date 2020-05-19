@@ -18,7 +18,6 @@ A library of Python tools for generating InSAR time series with GMTSAR
 
 
 # -------------------- DOWNLOADING --------------------
-
 def getOrbits(listURL, orbitURL, dirList, saveDir):
     """
     getOrbits - download Sentinel-1 orbits for a given set of SAFE folders.
@@ -115,9 +114,6 @@ def getOrbits(listURL, orbitURL, dirList, saveDir):
     downloadOrbits(orbitURL, downloadList, saveDir)
 
     return orbitList, downloadList
-
-
-# def getDEM():
 
 
 def getData(start, end, region, dir, subtype, framerange):
@@ -434,8 +430,43 @@ def getSceneTable(intfTable):
 
     return sceneTable
 
+# -------------------- DATA MANAGEMENT --------------------
+
+
+def archiveIntfs(intf_dir, archive_dates):
+    """
+    Archive interferograms which use noisy acquisitions.
+    INPUT:
+    intf_dir - path to host directory for interferogram directories (i.e. 'f2/intf_all')
+    archive_dates - list of dates in GMTSAR date format of noisy dates
+    """
+
+    # If not existant, create archive directory
+    archive_path = '{}/archived_intfs'.format(intf_dir)
+
+    if len(glob.glob(archive_path)) == 0:
+        print('Creating ' + archive_path)
+        subprocess.call("mkdir {}/archived_intfs".format(intf_dir), shell=True)
+
+    # Get list of interferograms to archive
+    archive_list = []
+
+    print()
+    print('Searching for dates containing: ')
+    for date in archive_dates:
+        print(date)
+        archive_list.extend(glob.glob(date + '_*'))  # Masters
+        archive_list.extend(glob.glob('*_' + date))  # Repeats
+
+    # Move to archive directory
+    print()
+    print('Archiving {} interferograms'.format(len(archive_list)))
+    for intf in archive_list:
+        subprocess.call('mv ' + intf + ' ' + archive_path, shell=True)
+
 
 #  -------------------- COMPATABILITY --------------------
+
 
 def convertIntfIn(intf_in, desired_format):
     """
@@ -718,7 +749,7 @@ def plotScenes(sceneTable, dataType, **kwargs):
     normData = abs(sceneTable[dataType] / sceneTable[dataType].max())
 
     # Plot data
-    im = ax.scatter(sceneTable['Date'], normData, c=sceneTable['Count'])
+    im = ax.scatter(sceneTable['Date'], normData, c=sceneTable['TotalCount'])
 
     # Get tick labels that correspond with original data
     ticks = np.linspace(0, np.round(np.ceil(sceneTable[dataType].max()), 1), 5)
@@ -784,7 +815,6 @@ def baselineCorrPlot(intfTable, **kwargs):
 
 
 # -------------------- DRIVERS --------------------
-
 def analyzeCatalog(sceneTable, intfTable):
     """
     Perform catalog coherence analysis for given interferogram table
@@ -809,14 +839,7 @@ def analyzeCatalog(sceneTable, intfTable):
 
 
 if __name__ == "__main__":
-    # Generate interferogram table for dataset
-    baselineTableFile = '/Users/ellisvavra/Desktop/LongValley/LV-InSAR/baseline_table_des.dat'
-    intfTableFile = '/Users/ellisvavra/Desktop/LongValley/LV-InSAR/intf_table_NN10.dat'
 
-    # Load files
-    baselineTable = readBaselineTable(baselineTableFile)
-    intfTable = readIntfTable(intfTableFile)
-    sceneTable = getSceneTable(intfTable)
-
-    # Make Network plot
-    plotNetwork(intfTable, baselineTable, sceneTable=sceneTable, figName='network_plot_NN10')
+    intf_dir = '/Users/ellisvavra/Desktop/LongValley/Tests/des/intf_all'
+    archive_dates = ['2020022']
+    archiveIntfs(intf_dir, archive_dates)
