@@ -18,7 +18,6 @@ A library of Python tools for generating InSAR time series with GMTSAR
 
 
 # -------------------- DOWNLOADING --------------------
-
 def getOrbits(listURL, orbitURL, dirList, saveDir):
     """
     getOrbits - download Sentinel-1 orbits for a given set of SAFE folders.
@@ -117,9 +116,6 @@ def getOrbits(listURL, orbitURL, dirList, saveDir):
     return orbitList, downloadList
 
 
-# def getDEM():
-
-
 def getData(start, end, region, dir, subtype, framerange):
     """
     Download Sentinel-1 SAR data using Alaska Satellite Facility API
@@ -133,6 +129,8 @@ def readBaselineTable(fileName):
     """
     Read in baseline table from GMTSAR
     """
+    print('Reading baseline table...')
+    print()
 
     baselineTable = pd.read_csv(fileName, header=None, sep=' ')  # Read table
     baselineTable.columns = ['Stem', 'numDate', 'sceneID', 'parBaseline', 'OrbitBaseline']
@@ -147,6 +145,8 @@ def readIntfTable(fileName):
     """
     Read in interferogram metadata table
     """
+    print('Reading interferogram table...')
+    print()
 
     # Read specified file
     intfTable = pd.read_csv(fileName, sep=' ', header=0)
@@ -156,8 +156,14 @@ def readIntfTable(fileName):
     intfTable['Master'] = pd.to_datetime(intfTable['Master'], format='%Y-%m-%d')
     intfTable['Repeat'] = pd.to_datetime(intfTable['Repeat'], format='%Y-%m-%d')
 
+    # Convert numpy.float64 to float
+    # orbitBaseline = intfTable['OrbitBaseline']
+    # meanCorr = intfTable['MeanCorr']
+    # intfTable['OrbitBaseline'] = [np.float64(bl).item() for bl in orbitBaseline]
+    # intfTable['MeanCorr'] = [np.float64(c).item() for c in meanCorr]
+
     # Display some lines
-    intfTable.head()
+    # intfTable.head()
 
     return intfTable
 
@@ -278,7 +284,55 @@ def makeIntfTable(baselineTable, corrPaths, **kwargs):
     return intfTable, baselineTable
 
 
-def filtIntfTable(intfTable, minMaster, maxMaster, minRepeat, maxRepeat, minTempBaseline, maxTempBaseline, minOrbitBaseline, maxOrbitBaseline, minMeanCorr, maxMeanCorr):
+def filtIntfTable(intfTable, **kwargs):
+    """
+    Filter interferogram table using input parameters
+    ---- INPUT ----------------------------------------------
+    intfTable - input interferogram table
+
+    Kwargs:
+    - Keys should be column names of intfTable.
+    - Arguments should be lists containing minimum/maximum values.
+        Master - min/max interferogram master date
+        Repeat - min/max interferogram Repeat date
+        TempBaseline - min/max temporal baseline length (days)
+        OrbitBaseline - min/max temporal baseline length (m)
+        MeanCorr - min/max mean intereferogram coherence
+
+    ---- OUTPUT ---------------------------------------------
+        filtIntfTable - table of interferograms meeting specified input parameters
+
+    ---- EXAMPLE --------------------------------------------
+    filtIntfTable = filtIntfTable(intfTable, Master=[dt.datetime(2014,1,1,0,0,0), dt.datetime(2021,1,1,0,0,0)],
+                                Repeat=[dt.datetime(2014,1,1,0,0,0), dt.datetime(2021,1,1,0,0,0)],
+                                TempBaseline=[0, 10**10],
+                                OrbitBaseline=[-1000, 1000],
+                                MeanCorr=[0, 1],
+                                Order=[1, 100])
+    """
+    filtIntfTable = intfTable
+
+    print('Filtering with following constraints:')
+
+    for arg in kwargs:
+        # Print message
+        print('{}: {} to {}'.format(arg, kwargs[arg][0], kwargs[arg][1]))
+        # Perform filtering
+        filtIntfTable = filtIntfTable[(intfTable[arg] >= kwargs[arg][0]) &
+                                      (intfTable[arg] <= kwargs[arg][1])]
+
+    # Reset index to 0,1,2,..., n-1
+    filtIntfTable = filtIntfTable.reset_index(drop=True)
+
+    # Print
+    print()
+    print('{} interferograms selected'.format(len(filtIntfTable)))
+    print()
+
+    return filtIntfTable
+
+
+def filtIntfTable_OLD(intfTable, minMaster, maxMaster, minRepeat, maxRepeat, minTempBaseline, maxTempBaseline, minOrbitBaseline, maxOrbitBaseline, minMeanCorr, maxMeanCorr):
     """
     Filter interferogram table using input parameters
     ---- INPUT ----------------------------------------------
@@ -311,31 +365,108 @@ def filtIntfTable(intfTable, minMaster, maxMaster, minRepeat, maxRepeat, minTemp
 
 def getSceneTable(intfTable):
     """
+    Generate table with information about each SAR aqquisition based off of input interferogram catalog.
 
+    FIELDS:
+    Date - acquisition date
+    TempBaseline - mean temporal baseline of all interferograms using scene
+    OrbitBaseline - mean orbital baseline of all interferograms using scene
+    MeanCorr - mean coherence of all interferograms using scene
+    TotalCount - number of interferograms using scene
+    MasterCount - number of interferograms using scene as a master
+    RepeatCount - number of interferograms using scene as a repeat
+    Masters - list of interferograms using scene as a master
+    Repeats - list of interferograms using scene as a repeat
     """
+
+    print('Getting scene information...')
+    print()
+
     # Cut out master/Repeat and coherence columns for concatenating
     df1 = intfTable[['Master', 'TempBaseline', 'OrbitBaseline', 'MeanCorr']]
     df1.columns = ['Scene', 'TempBaseline', 'OrbitBaseline', 'MeanCorr']
     df2 = intfTable[['Repeat', 'TempBaseline', 'OrbitBaseline', 'MeanCorr']]
     df2.columns = ['Scene', 'TempBaseline', 'OrbitBaseline', 'MeanCorr']
 
-    # Combine interferogram columns
+    # Combine interferogram table columns
     df3 = pd.concat([df1, df2])
+
+    # Aggregate lists of master/repeat interferograms. So sorry for the horrible stacked Dataframe methods.
+    masters = intfTable.set_index('Master', append='True').groupby(level=[0, 1], sort=False)['DateStr'].apply(list).reset_index('Master').groupby('Master')['DateStr'].apply(list).reset_index('Master')
+    masters.columns = ['Scene', 'Masters']
+
+    repeats = intfTable.set_index('Repeat', append='True').groupby(level=[0, 1], sort=False)['DateStr'].apply(list).reset_index('Repeat').groupby('Repeat')['DateStr'].apply(list).reset_index('Repeat')
+    repeats.columns = ['Scene', 'Repeats']
+
+    # Account for start/end scenes not having repeat/master instances
+    for date in repeats['Scene']:
+        if date not in list(masters['Scene']):
+            masters = masters.append({'Scene': date, 'Masters': []}, ignore_index=True)
+
+    for date in masters['Scene']:
+        if date not in list(repeats['Scene']):
+            repeats = repeats.append({'Scene': date, 'Repeats': []}, ignore_index=True)
+
+    # Reset indicies in date-ascending order
+    masters = masters.sort_values('Scene').reset_index(drop=True)
+    repeats = repeats.sort_values('Scene').reset_index(drop=True)
 
     # Get mean scene coherence and intf counts
     time = df3.groupby('Scene')['TempBaseline'].mean()
     orbit = df3.groupby('Scene')['OrbitBaseline'].mean()
     corr = df3.groupby('Scene')['MeanCorr'].mean()
-    counts = df3.groupby('Scene').count()['MeanCorr']
+    totalcounts = df3.groupby('Scene').count()['MeanCorr']
+
+    # Merge everything together
     sceneTable = pd.merge(time, orbit, how='inner', on='Scene')
     sceneTable = pd.merge(sceneTable, corr, how='inner', on='Scene')
-    sceneTable = pd.merge(sceneTable, counts, how='inner', on='Scene').reset_index()
-    sceneTable.columns = ['Date', 'TempBaseline', 'OrbitBaseline', 'MeanCorr', 'Count']
+    sceneTable = pd.merge(sceneTable, totalcounts, how='inner', on='Scene').reset_index()
+    sceneTable['MasterCount'] = [len(intfList) for intfList in masters['Masters']]
+    sceneTable['RepeatCount'] = [len(intfList) for intfList in repeats['Repeats']]
+    sceneTable = pd.merge(sceneTable, masters, how='inner', on='Scene')
+    sceneTable = pd.merge(sceneTable, repeats, how='inner', on='Scene')
+    sceneTable.columns = ['Date', 'TempBaseline', 'OrbitBaseline', 'MeanCorr', 'TotalCount',
+                          'MasterCount', 'RepeatCount', 'Masters', 'Repeats']
 
     return sceneTable
 
+# -------------------- DATA MANAGEMENT --------------------
+
+
+def archiveIntfs(intf_dir, archive_dates):
+    """
+    Archive interferograms which use noisy acquisitions.
+    INPUT:
+    intf_dir - path to host directory for interferogram directories (i.e. 'f2/intf_all')
+    archive_dates - list of dates in GMTSAR date format of noisy dates
+    """
+
+    # If not existant, create archive directory
+    archive_path = '{}/archived_intfs'.format(intf_dir)
+
+    if len(glob.glob(archive_path)) == 0:
+        print('Creating ' + archive_path)
+        subprocess.call("mkdir {}/archived_intfs".format(intf_dir), shell=True)
+
+    # Get list of interferograms to archive
+    archive_list = []
+
+    print()
+    print('Searching for dates containing: ')
+    for date in archive_dates:
+        print(date)
+        archive_list.extend(glob.glob(date + '_*'))  # Masters
+        archive_list.extend(glob.glob('*_' + date))  # Repeats
+
+    # Move to archive directory
+    print()
+    print('Archiving {} interferograms'.format(len(archive_list)))
+    for intf in archive_list:
+        subprocess.call('mv ' + intf + ' ' + archive_path, shell=True)
+
 
 #  -------------------- COMPATABILITY --------------------
+
 
 def convertIntfIn(intf_in, desired_format):
     """
@@ -496,7 +627,29 @@ def selectIntfs(tablePath, method, tMin, tMax, **kwargs):
     return intfIn, plotIn
 
 
+def addOrder(intfTable, baselineTable):
+    """
+    Calulate and append "nearest neighbor order" to each interferogram in intfTable.
+    For example, if 20191202 is the 1st available aquisition and 20200312 is the 5th,
+    then 20191202_20200312 is a 4th-order interferogram.
+    """
+    order = []
+
+    for i in range(len(intfTable)):
+        # Get indicies of scenes in intf
+        mi = baselineTable[baselineTable['Dates'] == intfTable['Master'][i]].index
+        ri = baselineTable[baselineTable['Dates'] == intfTable['Repeat'][i]].index
+        order.append((ri - mi)[0])
+
+    # Append column to imnput intfTable
+    newIntfTable = intfTable
+    newIntfTable['Order'] = order
+
+    return newIntfTable
+
 # -------------------- PLOTTING --------------------
+
+
 def plotNetwork(intfTable, baselineTable, **kwargs):
     """
     Make interferogram network/baseline plot
@@ -596,7 +749,7 @@ def plotScenes(sceneTable, dataType, **kwargs):
     normData = abs(sceneTable[dataType] / sceneTable[dataType].max())
 
     # Plot data
-    im = ax.scatter(sceneTable['Date'], normData, c=sceneTable['Count'])
+    im = ax.scatter(sceneTable['Date'], normData, c=sceneTable['TotalCount'])
 
     # Get tick labels that correspond with original data
     ticks = np.linspace(0, np.round(np.ceil(sceneTable[dataType].max()), 1), 5)
@@ -662,7 +815,6 @@ def baselineCorrPlot(intfTable, **kwargs):
 
 
 # -------------------- DRIVERS --------------------
-
 def analyzeCatalog(sceneTable, intfTable):
     """
     Perform catalog coherence analysis for given interferogram table
@@ -687,14 +839,7 @@ def analyzeCatalog(sceneTable, intfTable):
 
 
 if __name__ == "__main__":
-    # Generate interferogram table for dataset
-    baselineTableFile = '/Users/ellisvavra/Desktop/LongValley/LV-InSAR/baseline_table_des.dat'
-    intfTableFile = '/Users/ellisvavra/Desktop/LongValley/LV-InSAR/intf_table_NN10.dat'
 
-    # Load files
-    baselineTable = readBaselineTable(baselineTableFile)
-    intfTable = readIntfTable(intfTableFile)
-    sceneTable = getSceneTable(intfTable)
-
-    # Make Network plot
-    plotNetwork(intfTable, baselineTable, sceneTable=sceneTable, figName='network_plot_NN10')
+    intf_dir = '/Users/ellisvavra/Desktop/LongValley/Tests/des/intf_all'
+    archive_dates = ['2020022']
+    archiveIntfs(intf_dir, archive_dates)
