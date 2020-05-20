@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
-import netCDF as nc
+import netCDF4 as nc
 import glob as glob
+import datetime as dt
 
 """
 Methods for reading, writing, and editing special Pandas Dataframes for GMTSAR time series analysis
