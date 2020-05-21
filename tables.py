@@ -302,3 +302,20 @@ def addOrder(intfTable, baselineTable):
     newIntfTable['Order'] = order
 
     return newIntfTable
+
+
+def makeCandisTables(intfTable, baselineTable, **kwargs):
+
+    intf_list = pd.DataFrame([intfTable['Master'][i].strftime('%Y%m%d') + '_' + intfTable['Repeat'][i].strftime('%Y%m%d') for i in range(len(intfTable))])
+    baseline_info = pd.DataFrame()
+    baseline_info['Date'] = [date.strftime('%Y%m%d') for date in baselineTable['Date']]
+    baseline_info['OrbitBaseline'] = baselineTable['OrbitBaseline']
+    dates_to_use = baseline_info['Date']
+
+    if 'fileNames' in kwargs:
+        print()
+        for i, table in enumerate([intf_list, baseline_info, dates_to_use]):
+            print('Writing intf_list to ' + kwargs['fileNames'][i])
+            table.to_csv(kwargs['fileNames'][i], sep=' ', index=False, header=False)
+
+    return intf_list, baseline_info, dates_to_use
