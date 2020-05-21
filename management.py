@@ -3,7 +3,8 @@ import os
 import subprocess
 import numpy as np
 import pandas as pd
-from PyGMTSAR import convertIntfIn  # One day this will break and you will need to find its new home
+import datetime as dt
+# from PyGMTSAR import convertIntfIn  # One day this will break and you will need to find its new home
 
 
 def archiveIntfs(intf_dir, archive_dates):
@@ -227,4 +228,4 @@ def renameIntfs(searchStr, format):
             # print(newDirName)
             os.rename(dirName, newDirName)
 
-    return output_list
+    # return output_list
