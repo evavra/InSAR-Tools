@@ -3,6 +3,7 @@ from matplotlib import cm
 from mpl_toolkits.axes_grid1 import ImageGrid
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
+import datetime as dt
 
 
 """
@@ -10,7 +11,7 @@ Plotting methods for InSAR time series with GMTSAR
 """
 
 
-def plotNetwork(intfTable, baselineTable, **kwargs):
+def network(intfTable, baselineTable, **kwargs):
     """
     Make interferogram network/baseline plot
     """
@@ -68,7 +69,7 @@ def plotNetwork(intfTable, baselineTable, **kwargs):
         plt.close()
 
 
-def plotScenes(sceneTable, dataType, **kwargs):
+def scenes(sceneTable, dataType, **kwargs):
     """
     Plot mean coherence of each SAR scene for a given set of interferograms
     ---- INPUT ----------------------------------------------
@@ -121,7 +122,7 @@ def plotScenes(sceneTable, dataType, **kwargs):
     return im
 
 
-def baselineCorrPlot(intfTable, **kwargs):
+def baselineCorr(intfTable, **kwargs):
     """
     Plot temporal baseline versus mean coherence
     ---- INPUT ----------------------------------------------

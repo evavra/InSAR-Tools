@@ -5,11 +5,7 @@ import netCDF4 as nc
 import numpy as np
 import pandas as pd
 from mpl_toolkits.axes_grid1 import ImageGrid
-from PyGMTSAR import addOrder
-from PyGMTSAR import filtIntfTable
-from PyGMTSAR import getSceneTable
-from PyGMTSAR import readBaselineTable
-from PyGMTSAR import readIntfTable
+import tables
 
 
 # ----------- DRIVERS ----------
@@ -61,59 +57,67 @@ def plot_all_driver():
     # ---- N = 1 ------------------------------------
     # Read metadata
     baselineTableFile = '/Users/ellisvavra/Desktop/LongValley/LV-InSAR/baseline_table_des.dat'
-    intfTableFile = '/Users/ellisvavra/Desktop/LongValley/LV-InSAR/intf_table_NN15.dat'
-    baselineTable = readBaselineTable(baselineTableFile)
-    intfTable = readIntfTable(intfTableFile)
-    intfTable = addOrder(intfTable, baselineTable)  # Add interferogram order to table (should eventually get integrated with makeIntfTable)
+    intfTableFile = '/Users/ellisvavra/Desktop/LongValley/LV-InSAR/intf_table_des.dat'
+    baselineTable = tables.readBaselineTable(baselineTableFile)
+    intfTable = tables.readIntfTable(intfTableFile)
+    intfTable = tables.addOrder(intfTable, baselineTable)  # Add interferogram order to table (should eventually get integrated with makeIntfTable)
 
     # OPTIONAL: select interferograms to use in CSS based off of baseline, order,
-    maxOrder = 1
-    intfTable = intfTable[intfTable['Order'] <= maxOrder].reset_index(drop=True)
+    Order = [0, 5]
+    MeanCorr = [0.15, 1]
+    intfTable = tables.filtIntfTable(intfTable, MeanCorr=MeanCorr, Order=Order)
 
     print('Number of interferograms to use: ' + str(len(intfTable)))
     print()
 
     # Get individual scene information
-    sceneTable = getSceneTable(intfTable)
+    sceneTable = tables.makeSceneTable(intfTable)
 
     # Print valid/invalid dates
-    APS1, balance1 = css(sceneTable, intfTable, '/Users/ellisvavra/Desktop/LongValley/Tests/des/intf_all/', 2, 6)
+    apsTable = css(sceneTable, intfTable, '/Users/ellisvavra/Desktop/LongValley/Tests/des/intf_all/', 2, 6)
 
-    # ---- N = 2 ------------------------------------
-    baselineTable = readBaselineTable(baselineTableFile)
-    intfTable = readIntfTable(intfTableFile)
-    intfTable = addOrder(intfTable, baselineTable)
+    APS1 = apsTable['APS']
+    APS2 = APS1
+    APSN = APS1
+    balance1 = apsTable['Balance']
+    balance2 = balance1
+    balanceN = balance1
 
-    # OPTIONAL: select interferograms to use in CSS based off of baseline, order,
-    maxOrder = 2
-    intfTable = intfTable[intfTable['Order'] <= maxOrder].reset_index(drop=True)
+    # # ---- N = 2 ------------------------------------
+    # baselineTable = readBaselineTable(baselineTableFile)
+    # intfTable = readIntfTable(intfTableFile)
+    # intfTable = addOrder(intfTable, baselineTable)
 
-    print('Number of interferograms to use: ' + str(len(intfTable)))
-    print()
+    # # OPTIONAL: select interferograms to use in CSS based off of baseline, order,
+    # maxOrder = 2
+    # intfTable = intfTable[intfTable['Order'] <= maxOrder].reset_index(drop=True)
 
-    # Get individual scene information
-    sceneTable = getSceneTable(intfTable)
+    # print('Number of interferograms to use: ' + str(len(intfTable)))
+    # print()
 
-    # Print valid/invalid dates
-    APS2, balance2 = css(sceneTable, intfTable, '/Users/ellisvavra/Desktop/LongValley/Tests/des/intf_all/', 2, 6)
+    # # Get individual scene information
+    # sceneTable = getSceneTable(intfTable)
 
-    # ---- N = 8 ------------------------------------
-    baselineTable = readBaselineTable(baselineTableFile)
-    intfTable = readIntfTable(intfTableFile)
-    intfTable = addOrder(intfTable, baselineTable)
+    # # Print valid/invalid dates
+    # APS2, balance2 = css(sceneTable, intfTable, '/Users/ellisvavra/Desktop/LongValley/Tests/des/intf_all/', 2, 6)
 
-    # OPTIONAL: select interferograms to use in CSS based off of baseline, order,
-    maxOrder = 10
-    intfTable = intfTable[intfTable['Order'] <= maxOrder].reset_index(drop=True)
+    # # ---- N = 8 ------------------------------------
+    # baselineTable = readBaselineTable(baselineTableFile)
+    # intfTable = readIntfTable(intfTableFile)
+    # intfTable = addOrder(intfTable, baselineTable)
 
-    print('Number of interferograms to use: ' + str(len(intfTable)))
-    print()
+    # # OPTIONAL: select interferograms to use in CSS based off of baseline, order,
+    # maxOrder = 10
+    # intfTable = intfTable[intfTable['Order'] <= maxOrder].reset_index(drop=True)
 
-    # Get individual scene information
-    sceneTable = getSceneTable(intfTable)
+    # print('Number of interferograms to use: ' + str(len(intfTable)))
+    # print()
 
-    # Print valid/invalid dates
-    APSN, balance8 = css(sceneTable, intfTable, '/Users/ellisvavra/Desktop/LongValley/Tests/des/intf_all/', 2, 6)
+    # # Get individual scene information
+    # sceneTable = getSceneTable(intfTable)
+
+    # # Print valid/invalid dates
+    # APSN, balanceN = css(sceneTable, intfTable, '/Users/ellisvavra/Desktop/LongValley/Tests/des/intf_all/', 2, 6)
 
     # ---- PLOT ------------------------------------
     # Plot APS
@@ -155,7 +159,7 @@ def plot_all_driver():
         im = grid[2].imshow(APSN[i] * 55.6 / (4 * np.pi), cmap='Spectral')
         grid[0].set_title('N = 1 (Net {} days)'.format(balance1[i]))
         grid[1].set_title('N = 2 (Net {} days)'.format(balance2[i]))
-        grid[2].set_title('N = {} '.format(maxOrder) + ' (Net {} days)'.format(balance8[i]))
+        grid[2].set_title('N = {} '.format(Order[1]) + ' (Net {} days)'.format(balanceN[i]))
         grid[0].invert_xaxis()
         grid[1].invert_xaxis()
         grid[2].invert_xaxis()
@@ -404,19 +408,19 @@ def css(sceneTable, intfTable, pathStem, stack_min, stack_max, **kwargs):
                 print('Estmating APS on ' + date.strftime('%Y%m%d') + '...')
 
             # Initiate array using dimensions from first intf
-            temp = nc.Dataset(pathStem + (tempMasters + tempRepeats)[0] + '/unwrap.grd', 'r+', format='NETCDF4')
+            temp = nc.Dataset(pathStem + (tempMasters + tempRepeats)[0] + '/unwrap_m.grd', 'r+', format='NETCDF4')
             tempAPS = np.zeros((temp.dimensions['y'].size, temp.dimensions['x'].size))
             temp.close()
 
             # Sum together repeat instances
             for array in tempRepeats:
-                temp = nc.Dataset(pathStem + array + '/unwrap.grd', 'r+', format='NETCDF4')
+                temp = nc.Dataset(pathStem + array + '/unwrap_m.grd', 'r+', format='NETCDF4')
                 tempAPS += np.array(temp.variables['z'])
                 temp.close()
 
             # Then difference master instances
             for array in tempMasters:
-                temp = nc.Dataset(pathStem + array + '/unwrap.grd', 'r+', format='NETCDF4')
+                temp = nc.Dataset(pathStem + array + '/unwrap_m.grd', 'r+', format='NETCDF4')
                 tempAPS -= np.array(temp.variables['z'])
                 temp.close()
 
@@ -428,7 +432,7 @@ def css(sceneTable, intfTable, pathStem, stack_min, stack_max, **kwargs):
             repeats.append(tempRepeats)
 
     # Retroactively assign blank APS to dates with not enough available interferograms
-    temp = nc.Dataset(pathStem + intfTable['DateStr'].iloc[0] + '/unwrap.grd', 'r+', format='NETCDF4')
+    temp = nc.Dataset(pathStem + intfTable['DateStr'].iloc[0] + '/unwrap_m.grd', 'r+', format='NETCDF4')
     blank_aps = np.zeros((temp.dimensions['y'].size, temp.dimensions['x'].size))
     temp.close()
 
@@ -524,4 +528,4 @@ def plot_ANC(dates, ancList):
 
 
 if __name__ == '__main__':
-    driver()
+    plot_all_driver()
