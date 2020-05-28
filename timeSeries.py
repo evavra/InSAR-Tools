@@ -8,7 +8,7 @@ import netcdf_read_write
 from mpl_toolkits.axes_grid1 import ImageGrid
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import math
-import utilities_GPS
+import gps
 from readGRD import readInSAR
 import insarPlots
 import seismoPlots
@@ -218,7 +218,7 @@ def panels():
     # fileNames = specifyDateList(fileDir, dateList)
 
     # Extract data
-    [xdata, ydata, zCube, dates] = readStack(fileNames)
+    [xdata, ydata, zCube, dates] = readStack(fileNames, 'des')
 
     # Plot InSAR time-series panels
     # insarPanels(xdata, ydata, zCube, num_plots_x, num_plots_y, titles, colors, fileDir, outputName, save)
@@ -290,11 +290,7 @@ def overlay():
 
     # -- INPUT -----------------------------------------------------------------------------------
     output_dir = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Figures/"  # Lorax
-
     fileDir11 = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt11-Deramp-3-Ref-1/SBAS_SMOOTH_0.0000e+00/"
-    fileDir12 = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt12-Deramp-2-Ref-1/SBAS_SMOOTH_0.0000e+00/"
-    fileDir14 = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt14-Updated-ts-Cmin-0.19/SBAS_SMOOTH_0.0000e+00/"
-    fileDir15 = "/Users/ellisvavra/Thesis/insar/des/f2/intf_all/Attempt15-Cmin-0.20/SBAS_SMOOTH_0.0000e+00/"
     fileNames11 = getFileNames(fileDir11, fileType)
     fileNames12 = getFileNames(fileDir12, fileType)
     fileNames14 = getFileNames(fileDir14, fileType)
@@ -303,10 +299,10 @@ def overlay():
     outputName_ts2 = "ts-Attempt11-12-14-15.eps"
 
     # -- EXECUTE ---------------------------------------------------------------------------------
-    [xdata, ydata, zCube11, titles11] = inputs(fileNames11)
-    [xdata, ydata, zCube12, titles12] = inputs(fileNames12)
-    [xdata, ydata, zCube14, titles14] = inputs(fileNames14)
-    [xdata, ydata, zCube15, titles15] = inputs(fileNames15)
+    [xdata, ydata, zCube11, titles11] = readStack(fileNames11)
+    [xdata, ydata, zCube12, titles12] = readStack(fileNames12)
+    [xdata, ydata, zCube14, titles14] = readStack(fileNames14)
+    [xdata, ydata, zCube15, titles15] = readStack(fileNames15)
     master_data = [zCube11, zCube12, zCube14, zCube15]
     master_titles = [titles11, titles12, titles14, titles15]
     region = [400, 450, 700, 750]
@@ -379,9 +375,14 @@ def baseline():
 # ------------------------- READING -------------------------
 
 def getFileNames(fileDir, fileType):
+    """
+    Get paths to 'fileType' files in 'fileDir' directory
+    """
+
     # Seatches directory fileDir for files of format fileType
     print('Searching ' + fileDir + fileType)
     filePaths = glob.glob(fileDir + fileType)
+    filePaths.sort()
 
     if len(filePaths) == 0:
         print("Error! No files matching search pattern.")
@@ -427,6 +428,7 @@ def readStack(filePaths):
 
         print('Reading ' + dates[-1].strftime('%Y-%m-%d') + ' ...')
         x, y, z = readInSAR(file)
+
         zCube.append(z)
 
     return x, y, zCube, dates
@@ -655,20 +657,22 @@ def overlay_ts(master_data, master_titles, region, colors, fileDir, outputName_t
     dates = []
     range_change = []
 
-    fig = plt.figure(figsize=(25, 10))
+    fig = plt.figure()
 
     # Plot deformation map with selected region/pixels overlain
     ax1 = plt.subplot(121)
-    # ax1 = plt.subplot(111)
-    # grid[0].set_axis_off()
-    im = ax1.imshow(master_data[0][-1], cmap=colors, vmin=-0.05, vmax=0.05, aspect=0.75)
+    divider = make_axes_locatable(ax1)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
 
+    im = ax1.imshow(master_data[0][-1], cmap=colors, vmin=-0.05, vmax=0.05, aspect=0.75)
     ax1.plot([region[0], region[0], region[1], region[1], region[0]], [region[2], region[3], region[3], region[2], region[2]], color='blue', zorder=10000)
+
     ax1.set_title(master_titles[0][-1], fontsize=12, color='black')
-    ax1.invert_yaxis()
-    ax1.invert_xaxis()
-    cbar = fig.colorbar(im)
-    # cbar.set_label('LOS change (m)')
+    # ax1.invert_xaxis()
+    # ax1.invert_yaxis()
+    ax1.set_xticklabels([])
+    ax1.set_yticklabels([])
+    plt.colorbar(im, cax=cax, label='LOS change (m)')
 
     # Plot time-series for selected pixels
     ax2 = plt.subplot(122)
@@ -693,10 +697,10 @@ def overlay_ts(master_data, master_titles, region, colors, fileDir, outputName_t
             # print('Count = ' + str(len(sum)))
             # print('Mean value = ' + str(np.mean(sum)))
 
-            dates.append(dt.datetime.strptime(master_titles[i][j], "%Y%m%d"))
+            dates.append(master_titles[i][j])
             range_change.append(np.mean(total))
 
-        ax2.plot(dates, range_change, linestyle='--', marker='.', zorder=10)
+        ax2.scatter(dates, range_change, marker='+', zorder=10)
         count += 1
 
         # Reset if not last iteration
@@ -707,10 +711,8 @@ def overlay_ts(master_data, master_titles, region, colors, fileDir, outputName_t
     ax2.legend(labels, loc='lower right')
     ax2.set_aspect(2.15 * 10**4)
     ax2.set_xlim(min(dates) - dt.timedelta(days=30), max(dates) + dt.timedelta(days=30))
-    ax2.set_ylim(-0.01, 0.05)
-
     plt.xlabel('Date')
-    plt.ylabel('LOS range change (m)', rotation=0, labelpad=58)
+    plt.ylabel('LOS range change (m)', rotation=90, labelpad=58)
 
     if save == 'yes':
         print('Saving time series to ' + fileDir + outputName_ts2)
@@ -718,9 +720,9 @@ def overlay_ts(master_data, master_titles, region, colors, fileDir, outputName_t
         plt.close()
         subprocess.call("open " + fileDir + outputName_ts2, shell=True)
 
-    else:
-        plt.show()
-
+    # else:
+        # plt.show()
+    return ax1, ax2
 
 def gps_insar_ts(zCube, titles, region, colors, fileDir, outputName_compare, save, gps_filename, data_format, component):
 
@@ -731,7 +733,7 @@ def gps_insar_ts(zCube, titles, region, colors, fileDir, outputName_compare, sav
 
     # Plot deformation map with selected region/pixels overlain
     ax1 = plt.subplot(121)
-    im = ax1.imshow(zCube[-1], cmap=colors, vmin=-0.05, vmax=0.05, aspect=0.75)
+    im = ax1.imshow(zCube[-1], cmap=colors, aspect=0.75)
 
     ax1.plot([region[0], region[0], region[1], region[1], region[0]], [region[2], region[3], region[3], region[2], region[2]], color='blue', zorder=10000)
     ax1.set_title(titles[-1], fontsize=12, color='black')
@@ -767,7 +769,7 @@ def gps_insar_ts(zCube, titles, region, colors, fileDir, outputName_compare, sav
     ax2.set_aspect(2.15 * 10**4)
 
     # Load GPS data
-    gps_data = utilities_GPS.readUNR(gps_filename, data_format)
+    gps_data = utilities_GPS.readASCII(gps_filename, data_format)
 
     # Get displacements
     plot_displacements = []
