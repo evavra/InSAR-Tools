@@ -43,7 +43,7 @@ def driver():
     newIntfTable = filtIntfTable(intfTable, Master=Master, Repeat=Repeat, TempBaseline=TempBaseline, OrbitBaseline=OrbitBaseline, MeanCorr=MeanCorr, Order=Order)
 
     # Get individual scene information
-    sceneTable = getSceneTable(newIntfTable)
+    sceneTable = makeSceneTable(newIntfTable)
 
     # Perform CSS
     apsTable = css(sceneTable, newIntfTable, dirPath, 2, 6, Dates=Dates)
@@ -54,7 +54,6 @@ def driver():
 
 def plot_all_driver():
 
-    # ---- N = 1 ------------------------------------
     # Read metadata
     baselineTableFile = '/Users/ellisvavra/Desktop/LongValley/LV-InSAR/baseline_table_des.dat'
     intfTableFile = '/Users/ellisvavra/Desktop/LongValley/LV-InSAR/intf_table_des.dat'
@@ -96,7 +95,7 @@ def plot_all_driver():
     # print()
 
     # # Get individual scene information
-    # sceneTable = getSceneTable(intfTable)
+    # sceneTable = makeSceneTable(intfTable)
 
     # # Print valid/invalid dates
     # APS2, balance2 = css(sceneTable, intfTable, '/Users/ellisvavra/Desktop/LongValley/Tests/des/intf_all/', 2, 6)
@@ -114,7 +113,7 @@ def plot_all_driver():
     # print()
 
     # # Get individual scene information
-    # sceneTable = getSceneTable(intfTable)
+    # sceneTable = makeSceneTable(intfTable)
 
     # # Print valid/invalid dates
     # APSN, balanceN = css(sceneTable, intfTable, '/Users/ellisvavra/Desktop/LongValley/Tests/des/intf_all/', 2, 6)
@@ -159,7 +158,7 @@ def plot_all_driver():
         im = grid[2].imshow(APSN[i] * 55.6 / (4 * np.pi), cmap='Spectral')
         grid[0].set_title('N = 1 (Net {} days)'.format(balance1[i]))
         grid[1].set_title('N = 2 (Net {} days)'.format(balance2[i]))
-        grid[2].set_title('N = {} '.format(Order[1]) + ' (Net {} days)'.format(balanceN[i]))
+        grid[2].set_title('N = {} '.format(Order[10]) + ' (Net {} days)'.format(balanceN[i]))
         grid[0].invert_xaxis()
         grid[1].invert_xaxis()
         grid[2].invert_xaxis()
@@ -366,7 +365,9 @@ def css(sceneTable, intfTable, pathStem, stack_min, stack_max, **kwargs):
         sceneTable = sceneTable[current_dates.isin(selected_dates)].reset_index(drop=True)
 
     print()
-    print('Starting Common Scene Stacking...')
+    print()
+    print()
+    print('##### Starting Common Scene Stacking... #####')
     print()
 
     APS = []
