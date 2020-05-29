@@ -2,6 +2,7 @@ import sys
 import glob
 import numpy as np
 import netCDF4 as nc
+import datetime as dt
 
 """
 Read and write InSAR data files (mostly NetCDF4 for images and ASCII for time series)
@@ -40,13 +41,15 @@ def readGrd(filePath):
     zdata - data contained in 'z' variable
     """
 
-    grid = nc.Dataset(filePath)
+    grid = nc.Dataset(filePath, 'r')
 
+    # Anticipate radar coordinates
     if '_ra.' in filePath:
         xdata = np.array(grid.variables['x'])
         ydata = np.array(grid.variables['y'])
-        zdata = np.flip(grid.array(nc.variables['z']), 1)
+        zdata = np.flip(np.array(grid.variables['z']), 1)
 
+    # Anticipate geographic coordinates
     elif '_ll.' in filePath:
         try:
             xdata = np.array(grid.variables['lon'])
@@ -67,12 +70,14 @@ def readGrd(filePath):
             zdata = np.flip(zdata, 0)
 
     else:
-        # Assume radar format (CANDIS default)
+        # Assume radar format (GMTSAR and CANDIS default)
         xdata = np.array(grid.variables['x'])
         ydata = np.array(grid.variables['y'])
-        zdata = np.flip(grid.array(nc.variables['z']), 1)
+        zdata = np.flip(np.array(grid.variables['z']), 1)
 
         print('Please remember to specify radar (ra) or lat/lon (ll) in the future!')
+
+    grid.close()
 
     return xdata, ydata, zdata
 
@@ -106,8 +111,8 @@ def readStack(filePaths):
             dates.append(dt.datetime.strptime(file[-17:-9], '%Y%m%d'))
 
         print('Reading ' + dates[-1].strftime('%Y-%m-%d') + ' ...')
-        x, y, z = readInSAR(file)
+        x, y, z = readGrd(file)
 
-        zCube.append(z)
+        stack.append(z)
 
     return x, y, stack, dates
