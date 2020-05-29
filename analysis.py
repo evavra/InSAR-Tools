@@ -1,6 +1,7 @@
 import numpy as np
 import netCDF4 as nc
 import matplotlib.pyplot as plt
+import data
 
 
 # def getIndex(x, y, grid, coordinates):
@@ -39,24 +40,22 @@ def getPoint(grid):
 
         ij.append(int(event.xdata))
         ij.append(int(event.ydata))
-        print('Point indicies: {}'.format(ij[0], ij[1]))
+        print('Point indicies: ({}, {})'.format(ij[0], ij[1]))
         plt.close()
 
-        return region
-
-    fig = plt.figure()
+        return ij
 
     # Plot deformation map with selected region/pixels overlain
+    fig = plt.figure()
     ax = plt.gca()
     im = ax.imshow(grid)
     cbar = fig.colorbar(im)
     cbar.set_label('LOS change (m)')
-
     fig.canvas.mpl_connect('button_press_event', select_coordinates)
 
     plt.show()
 
-    return region
+    return ij
 
 
 def getTimeSeries(stack, point, track, coordinates, **kwargs):
@@ -84,67 +83,25 @@ def getTimeSeries(stack, point, track, coordinates, **kwargs):
         boxDim = 10
 
     # Compute time series for a specified point
+    # First, get averaging box indicies
+    box = [point[0] - int(boxDim / 2), point[0] + int(boxDim / 2), point[0] - int(boxDim / 2), point[0] + int(boxDim / 2)]
+
     print()
-    print('Point indices: ' + str(point))
-    print('Z-array dimensions: ' + str(stack[0].shape))
+    print('Box azimuth: ({}, {})'.format(box[0], box[1]))
+    print('Box range: ({}, {})'.format(box[2], box[3]))
     print()
-
-    # Since the z data are organized by numerical index, not geographic coordinate, we count the number of pixels
-    # which are less than the target point x/y coordinates to find its location in the grid.
-    # We must subtract zero from the sums due to Python's zero-indexing
-
-    ptID = [sum(xData < point[0]) - 1, sum(yData > point[1]) - 1]
-
-    boxID = [ptID[0] - boxDim,
-             ptID[0] + boxDim,
-             ptID[1] - boxDim,
-             ptID[1] + boxDim]
-
-    # If initial box extends outside of the grid, shift over by one pixel until it fits
-    if boxID[0] < min(xData) or boxID[1] > max(xData) or boxID[3] < min(yData) or boxID[4] > max(yData):
-
-        print('Box extends outside of grid domain')
-
-    print('Point indicies: ' + str(ptID))
-    print('Box indicies: ' + str(boxID))
-    print()
-
-    # plt.imshow(zCube[0])
-    # plt.scatter(ptID[0], ptID[1], marker='o', s=20, c='k')
-    # plt.plot([boxID[0], boxID[1], boxID[1], boxID[0], boxID[0]], np.array([boxID[2], boxID[2], boxID[3], boxID[3], boxID[2]]), c='k')
-    # plt.axis([600,1000,600,1000])
-    # plt.show()
 
     # Now we've got our averaging box. We will use the mean value of this box to formulate each point in the timeseries
-    dates = []
-    rangeChange = []
-
-    for scene in zCube:
-
-        nanCount = 0
-        boxSum = []
-        numPix = 0
-
-        for x in range(boxID[0], boxID[1]):
-            for y in range(boxID[2], boxID[3]):
-                if math.isnan(scene[y][x]):
-                    nanCount += 1
-                else:
-                    boxSum.append(scene[y][x])
-                    numPix += 1
-
-        # dates.append(dt.datetime.strptime(titles[i], "%Y%m%d"))
-        rangeChange.append(np.mean(boxSum))
+    rangeChange = [np.nanmean(grid[box[0]:box[1], box[2]:box[3]]) for grid in stack]
 
     return rangeChange
 
 
 if __name__ == '__main__':
-    #  GENERATE POINT TIME SERIES
-    # -- INPUT --------------------------------------------------------------------------------------
-    # Files
+    # Point time series test
+    # --------------------------------------------------------------------------------------
     fileDir = '/Users/ellisvavra/Desktop/LongValley/LV-InSAR/Results/Run01/'
-    fileType = 'LOS_2014*_INT3.grd'
+    fileType = 'LOS_20*_INT3.grd'
 
     track = 'des'
     coordinates = 'ra'
@@ -155,15 +112,18 @@ if __name__ == '__main__':
     outDir = fileDir
     outputName_ts = "timeseries_test.eps"
 
-    # -- EXECUTE --------------------------------------------------------------------------------------
+    # --------------------------------------------------------------------------------------
     # Get list of filenames
-    fileNames = getFileNames(fileDir, fileType)
+    fileNames = data.getFileNames(fileDir, fileType)
 
     # Read data
-    [xdata, ydata, stack, dates] = readStack(fileNames)
+    [xdata, ydata, stack, dates] = data.readStack(fileNames)
 
-    # Get point
+    # Get time series point
     point = getPoint(stack[-1])
 
-    # Get time series
-    # getTimeSeries(stack, track, coordinates, boxDim)
+    # Get time series data
+    rangeChange = getTimeSeries(stack, point, track, coordinates)
+
+    plt.scatter(dates, rangeChange)
+    plt.show()
