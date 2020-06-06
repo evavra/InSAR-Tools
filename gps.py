@@ -205,6 +205,17 @@ def filtStations(stationInfo, minLon, maxLon, minLat, maxLat, outName):
 
 
 def proj2LOS(gpsData, stationList, lookTable):
+    """
+    Project GPS data into InSAR LOS direction
+
+    INPUT:
+    gpsData - Path to GPS data file. Currently only supports UNR format.
+    stationList - Table containing station names and locations. Currently only supports UNR format.
+    lookTable - look-up table for LOS unit vector at all InSAR pixels.
+
+    OUTPUT:
+    stationData - Pandas DataFrame with LOS projection appended to regular GPS data
+    """
 
     # Load GPS data
     stationData = readASCII(gpsData, 'UNR')
@@ -255,7 +266,29 @@ def proj2LOS(gpsData, stationList, lookTable):
     return stationData
 
 
+def difference(ts1, ts2, data1, data2):
+    """
+    Compute difference between two time series.
+    Data must be DataFrames containing a datetime 'Date' column.
+
+    INPUT:
+    ts1 - first time series
+    ts2 - second time series
+    date_col - name of date column (must be common between both DataFrames!)
+    data_col - name of data column (must be common between both DataFrames!)
+
+    OUTPUT:
+    difference  - DataFrame containing Date and Difference columns
+    """
+    # Merge time series on common dates
+    difference = pd.merge(ts1, ts2, how='inner', on=['Date'])
+    difference['Difference'] = [difference[data1][i] - difference[data2][i] for i in range(len(difference))]
+
+    return difference
+
+
 def diffGPS(stationData1, stationData2, dateCol, dataCol):
+    # DEPRECIATED - USE DIFFERENCE INTEAD
     # Calculate a differential GPS time series for two GPS stations
     # --------------------------------------------------------------
     # INPUT:
@@ -271,7 +304,7 @@ def diffGPS(stationData1, stationData2, dateCol, dataCol):
     #                both stations is not available are set to Nan.
     # --------------------------------------------------------------
 
-    # Convert date columns to arrays
+    # Convert date columns to lists
     dates1 = list(stationData1[dateCol])
     dates2 = list(stationData2[dateCol])
 
