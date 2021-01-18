@@ -8,27 +8,30 @@ import sys
 # ========== SPECIFY FILEPATHS ==========
 
 def main():
-    if len(sys.argv) < 3:
-        print('Generate list of interferograms to process and baseline plot given baseline table and processing parameters')
-        print('')
-        print('Usage: get_baseline.py prm_file baseline_file')
-        print('')
-        print('INPUT:')
-        print('  prm_file - parameter (PRM) file containing date and baseline values for interferogram selection')
-        print('  baseline_file - GMTSAR baseline table file')
-        print('')
-        print('OUTPUT:')
-        print('  short.dat - list of interferograms in YYYYMMDD_YYYYMMDD format')
-        print('    Ex: 20150126_20150607')
-        print('        20150126_20150701')
-        print('        20150126_20150725')
-        print('        20150126_20150818')
-        print('  intf.in - list of interferogram pairs in SLC-style given in baseline_table.dat')
-        print('    Ex: S1A20150126_ALL_F1:S1A20150607_ALL_F1')
-        print('        S1A20150126_ALL_F1:S1A20150701_ALL_F1')
-        print('')
-        print('  baseline_plot.eps - plot of interferograms satisfying baseline constraints')
+    """
+    Generate list of interferograms to process and baseline plot given baseline table and processing parameters
+    Usage: get_baseline.py prm_file baseline_file
+    
+    INPUT:
+      prm_file - parameter (PRM) file containing date and baseline values for interferogram selection
+      baseline_file - GMTSAR baseline table file
+    
+    OUTPUT:
+      short.dat - list of interferograms in YYYYMMDD_YYYYMMDD format
+        Ex: 20150126_20150607')
+            20150126_20150701')
+            20150126_20150725')
+            20150126_20150818')
+    
+      intf.in - list of interferogram pairs in SLC-style given in baseline_table.dat
+        Ex: S1A20150126_ALL_F1:S1A20150607_ALL_F1
+            S1A20150126_ALL_F1:S1A20150701_ALL_F1
+    
+      baseline_plot.eps - plot of interferograms satisfying baseline constraints
+      """
 
+    if len(sys.argv) < 3:
+        print(main.__doc__)
         sys.exit()
 
 
@@ -49,7 +52,7 @@ def main():
     write_intf_list('short.dat', [dates[0].strftime('%Y%m%d') + '_' + dates[1].strftime('%Y%m%d') for dates in intf_dates])
 
     # Make baseline plot 
-    baseline_plot(intf_dates, baseline_table, supermaster)
+    baseline_plot(intf_dates, baseline_table, supermaster=supermaster)
 
 
 # ========== FUNCTIONS ==========
@@ -283,9 +286,24 @@ def select_pairs(baseline_table, prm_file):
     return intf_list, intf_dates, supermaster
 
 
-def baseline_plot(intf_dates, baseline_table, supermaster):
-    fig = plt.figure(figsize=(10,6))
-    ax = plt.gca()
+def baseline_plot(intf_dates, baseline_table, supermaster={}):
+
+    """
+    Make baseline netwwork plot for given set of interferograms
+
+    INPUT:
+    intf_dates     - list containing n interferogram date pairs (n, 2)
+    baseline_table - Dataframe containing appended GMTSAR baseline info table
+    (supermaster   - supply dictionary containing info for the supermaster scene; will be plotted in red)
+    """
+
+    # Check for supermaster; set to empty if none is provided
+    if len(supermaster) == 0:
+        supermaster['dates'] = None
+        supermaster['Bp'] = None
+
+    # Initialize plot
+    fig, ax = plt.subplots(figsize=(10,6))
 
     # Plot pairs
     for date_pair in intf_dates:
