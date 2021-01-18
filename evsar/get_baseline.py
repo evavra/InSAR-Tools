@@ -10,6 +10,7 @@ import sys
 def main():
     """
     Generate list of interferograms to process and baseline plot given baseline table and processing parameters
+    
     Usage: get_baseline.py prm_file baseline_file
     
     INPUT:
@@ -23,13 +24,20 @@ def main():
             20150126_20150725')
             20150126_20150818')
     
-      intf.in - list of interferogram pairs in SLC-style given in baseline_table.dat
+      intf.in - list of interferogram pairs in SLC naming convention, for input into GMTSAR interferogram scripts
         Ex: S1A20150126_ALL_F1:S1A20150607_ALL_F1
             S1A20150126_ALL_F1:S1A20150701_ALL_F1
     
+      Note: subsets of these will be generated which correspond to the selection parameters provided in the prm_file
+        Ex:
+        intf.in.sequential for SEQUENTIAL = True
+        intf.in.skip_2 for Skip = 2
+        intf.in.y2y for Y2Y_INTFS  = True
+
       baseline_plot.eps - plot of interferograms satisfying baseline constraints
       """
 
+    # Return docstring if arguments unspecified
     if len(sys.argv) < 3:
         print(main.__doc__)
         sys.exit()
@@ -251,6 +259,7 @@ def select_pairs(baseline_table, prm_file):
                     continue
                     # ACTUALLY WRITE THIS SOMETIME ELLIS
 
+
     # If SEQ_INTFS is specified, Select every nth pair using incremement specified by SEQ_INTFS
     if SEQ_INTFS > 0:
         print('Making sequential interferograms of order: {}'.format(np.arange(0, SEQ_INTFS+1)[1:]))
@@ -277,6 +286,8 @@ def select_pairs(baseline_table, prm_file):
                 # intf_list.append('S1_' + initials[i, j].strftime('%Y%m%d') + '_ALL_F2:S1_' + repeats[i, j].strftime('%Y%m%d') + '_ALL_F2')
                 intf_list.append(baseline_table['scene_id'][i] + ':' + baseline_table['scene_id'][j])
                 intf_dates.append([baseline_table['date'][i],baseline_table['date'][j]])
+
+
 
     # Get number of interferogams to make
     n = len(intf_list)
