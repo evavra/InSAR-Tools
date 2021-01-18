@@ -410,7 +410,7 @@ def baseline_plot(intf_dates, baseline_table, supermaster={}):
         ax.text(baseline_table['date'][i] + dt.timedelta(days=10), 
                 baseline_table['Bp'][i] + 5, 
                 baseline_table['date'][i].strftime('%Y/%m/%d'), 
-                size=8, c=c_text)
+                size=8, color=c_text)
     
     ax.set_ylabel('Perpendicular baseline (m)')
     ax.set_xlabel('Date')
