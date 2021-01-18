@@ -51,13 +51,18 @@ def main():
     baseline_table = load_baseline_table(baseline_file) 
 
     # Get pairs
-    intf_list, intf_dates, supermaster = select_pairs(baseline_table, prm_file)
+    intf_inputs, intf_dates, subset_inputs, subset_dates, supermaster = select_pairs(baseline_table, prm_file)
     
     # Write intferferogram list to use with GMTSAR scripts
-    write_intf_list('intf.in', intf_list)
+    write_intf_list('intf.in', intf_inputs)
 
     # Write dates to list of interferogram directories to be generate=d
     write_intf_list('short.dat', [dates[0].strftime('%Y%m%d') + '_' + dates[1].strftime('%Y%m%d') for dates in intf_dates])
+
+    # Also write interferogram subset lists
+    for key in subset_inputs:
+        write_intf_list('intf.in.' + key, subset_inputs[key])
+        write_intf_list('short.dat.' + key, [dates[0].strftime('%Y%m%d') + '_' + dates[1].strftime('%Y%m%d') for dates in subset_dates[key]])
 
     # Make baseline plot 
     baseline_plot(intf_dates, baseline_table, supermaster=supermaster)
@@ -88,6 +93,7 @@ def load_PRM(prm_file, var_in):
             # Catch empty lines
             if not item:
                 continue
+
             # Catch comments
             elif (item[0] == '#') or ('#' in item[2]):
                 continue
@@ -183,24 +189,22 @@ def write_intf_list(file_name, intf_list):
 
 def select_pairs(baseline_table, prm_file):
 
-    # ---------- SET UP PARAMETERS ----------
+    # ---------- SET THINGS UP ----------
     # Get number of aquisitions
     N = len(baseline_table)  
     print()
     print('Number of SAR scenes:', N)
 
-     # Initialize interferogram key matrix (1 to make intf, 0 for no intf)
-    ID = np.zeros((N, N)) 
-
     # Check pair selection parameters
-    SEQ_INTFS = load_PRM(prm_file, 'SEQ_INTFS')
-    Y2Y_INTFS = load_PRM(prm_file, 'Y2Y_INTFS')
+    SEQUENTIAL = load_PRM(prm_file, 'SEQUENTIAL')
+    SKIP_N     = load_PRM(prm_file, 'SKIP_N')
+    Y2Y_INTFS  = load_PRM(prm_file, 'Y2Y_INTFS')
 
     # Load baseline parameters
     defaults = [0, 0, 0] # Default values
-    Bp_max = load_PRM(prm_file,'BP_MAX');
-    t_min = load_PRM(prm_file, 'DT_MIN');
-    t_max = load_PRM(prm_file, 'DT_MAX');
+    Bp_max   = load_PRM(prm_file,'BP_MAX');
+    t_min    = load_PRM(prm_file, 'DT_MIN');
+    t_max    = load_PRM(prm_file, 'DT_MAX');
 
     # If any parameter is unspecified, instate default values
     for param, value, default in zip(['BP_MAX', 'DT_MIN', 'DT_MAX'], [Bp_max, t_min, t_max], defaults):
@@ -232,11 +236,16 @@ def select_pairs(baseline_table, prm_file):
         
 
     # ---------- ACTUAL INTERFEROGRAM SELECTION ----------
-    # This portion of the code operates by 'turning on' elements of a NxN matrix corresponding to all possible interferometric pairs
+    # This portion of the code operates by 'turning on' elements of a NxN network matrix corresponding to all possible interferometric pairs
     # All values start 'off'
+
+     # Initialize dictionary to contain a network matrix for each subset of interferograms to be made
+    subset_IDs = {}
 
     # If Y2Y_INTFS is specified, identify scenes which fit date range provided by Y2Y_START and Y2Y_END
     if Y2Y_INTFS > 0:
+        ID_Y2Y_INTFS = np.zeros((N, N)) 
+
         # Read dates 
         Y2Y_START = load_PRM(prm_file,'Y2Y_START');
         Y2Y_END = load_PRM(prm_file,'Y2Y_END');
@@ -259,42 +268,99 @@ def select_pairs(baseline_table, prm_file):
                     continue
                     # ACTUALLY WRITE THIS SOMETIME ELLIS
 
+    # OLD
+    # # If SEQ_INTFS is specified, Select every nth pair using incremement specified by SEQ_INTFS
+    #   if SEQ_INTFS > 0:
+    #       print('Making sequential interferograms of order: {}'.format(np.arange(0, SEQ_INTFS+1)[1:]))
+    #       for n in range(int(SEQ_INTFS)):
+    #           inc = n + 1
+    #           for i in range(N):
+    #               for j in range(N):
+    #                   if np.mod(i, inc) == 0:    
+    #                       if abs(j - i) == inc:
+    #                           ID[i, j] = 1
 
-    # If SEQ_INTFS is specified, Select every nth pair using incremement specified by SEQ_INTFS
-    if SEQ_INTFS > 0:
-        print('Making sequential interferograms of order: {}'.format(np.arange(0, SEQ_INTFS+1)[1:]))
-        for n in range(int(SEQ_INTFS)):
-            inc = n + 1
-            for i in range(N):
-                for j in range(N):
-                    if np.mod(i, inc) == 0:    
-                        if abs(j - i) == inc :
-                            ID[i, j] = 1
+    # If SEQUENTIAL is specified, make every sequential interferogram
+    if bool(SEQUENTIAL) == True:
+        ID_SEQUENTIAL = np.zeros((N, N)) 
+        print('Making sequential interferograms')
+        for i in range(N):
+            for j in range(N):
+                if np.mod(i, 1) == 0:    
+                    if abs(j - i) == 1:
+                        ID_SEQUENTIAL[i, j] = 1
+
+        subset_IDs['sequential'] = ID_SEQUENTIAL
+
+    # If SKIP_N is specified, skip every nth pair and make sequential interferograms
+    if SKIP_N > 0:
+        print('Making sequential interferograms with skip = {}'.format(int(SKIP_N)))
+        ID_SKIP_N = np.zeros((N, N)) 
+        for i in range(N):
+            for j in range(N):
+                if np.mod(i, SKIP_N + 1) == 0:    
+                    if abs(j - i) == SKIP_N + 1:
+                        ID_SKIP_N[i, j] = 1
+
+            subset_IDs['skip_{}'.format(int(SKIP_N))] = ID_SKIP_N
+
+    # # OLD
+    # # Create initial and repeat matricies of dimension N x N
+    # initials = np.array(list(baseline_table['date'])).repeat(N).reshape(N, N)
+    # repeats = np.array(list(baseline_table['date'])).repeat(N).reshape(N, N).T
 
 
+    # # Loop through indicies to get pair dates
+    # intf_list = []
+    # intf_dates = []
+
+    # for i in range(len(ID)):
+    #     for j in range(len(ID[0])):
+    #         if ID[i, j] == 1 and initials[i, j] < repeats[i, j]:  # We only want the upper half of the matrix, so ignore intf pairs where 'initial' comes after 'repeat'
+    #             # intf_list.append('S1_' + initials[i, j].strftime('%Y%m%d') + '_ALL_F2:S1_' + repeats[i, j].strftime('%Y%m%d') + '_ALL_F2')
+    #             intf_list.append(baseline_table['scene_id'][i] + ':' + baseline_table['scene_id'][j])
+    #             intf_dates.append([baseline_table['date'][i],baseline_table['date'][j]])
+
+
+    # ---------- PREPARE OUTPUT LISTS ----------
     # Create initial and repeat matricies of dimension N x N
     initials = np.array(list(baseline_table['date'])).repeat(N).reshape(N, N)
     repeats = np.array(list(baseline_table['date'])).repeat(N).reshape(N, N).T
 
-    # Loop through indicies to get pair dates
-    intf_list = []
+    # Loop through subset dictionary to make individual subset interferograms] lists
+    subset_inputs = {}
+    subset_dates = {}
+
+    for key in subset_IDs.keys():
+        inputs = []
+        dates = []
+
+        for i in range(len(subset_IDs[key])):
+            for j in range(len(subset_IDs[key][0])):
+                if subset_IDs[key][i, j] == 1 and initials[i, j] < repeats[i, j]:  # We only want the upper half of the matrix, so ignore intf pairs where 'initial' comes after 'repeat'
+                    inputs.append(baseline_table['scene_id'][i] + ':' + baseline_table['scene_id'][j])
+                    dates.append([baseline_table['date'][i],baseline_table['date'][j]])
+
+        subset_inputs[key] = inputs 
+        subset_dates[key]  = dates
+
+
+    # Aggregate to master lists
+    intf_inputs = []
     intf_dates = []
 
-    for i in range(len(ID)):
-        for j in range(len(ID[0])):
-            if ID[i, j] == 1 and initials[i, j] < repeats[i, j]:  # We only want the upper half of the matrix, so ignore intf pairs where 'initial' comes after 'repeat'
-                # intf_list.append('S1_' + initials[i, j].strftime('%Y%m%d') + '_ALL_F2:S1_' + repeats[i, j].strftime('%Y%m%d') + '_ALL_F2')
-                intf_list.append(baseline_table['scene_id'][i] + ':' + baseline_table['scene_id'][j])
-                intf_dates.append([baseline_table['date'][i],baseline_table['date'][j]])
+    for key in subset_inputs:
+        intf_inputs.extend(subset_inputs[key])
 
-
+    for key in subset_dates:
+        intf_dates.extend(subset_dates[key])
 
     # Get number of interferogams to make
-    n = len(intf_list)
+    n = len(intf_inputs)
     print('Number of interferograms: {}'.format(n))
 
 
-    return intf_list, intf_dates, supermaster
+    return intf_inputs, intf_dates, subset_inputs, subset_dates, supermaster
 
 
 def baseline_plot(intf_dates, baseline_table, supermaster={}):
