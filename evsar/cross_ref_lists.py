@@ -22,7 +22,7 @@ def read_file(filename):
     file_list = []
     with open(filename, 'r') as f:
         for line in f:
-            append(line)
+            file_list.append(line)
 
     return file_list
 
