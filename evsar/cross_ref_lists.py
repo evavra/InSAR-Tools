@@ -14,7 +14,7 @@ def main():
         sys.exit()
 
     new = read_file(sys.argv[1])
-    old = read_file(sys.argv[2])
+    reference = read_file(sys.argv[2])
 
     check_items(new, reference)
 
