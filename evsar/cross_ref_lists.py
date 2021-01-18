@@ -9,12 +9,12 @@ def main():
     Usage: python cross_ref_lists.py new reference
     """
 
-    if len(sys.argv) != 2:
+    if len(sys.argv) != 3:
         print(main.__doc__)
         sys.exit()
 
-    new = read_file(sys.argv[0])
-    old = read_file(sys.argv[1])
+    new = read_file(sys.argv[1])
+    old = read_file(sys.argv[2])
 
     check_items(new, reference)
 
