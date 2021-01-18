@@ -18,18 +18,19 @@ def main():
         print('  baseline_file - GMTSAR baseline table file')
         print('')
         print('OUTPUT:')
-        print('  date.list - list of interferograms in YYYYMMDD_YYYYMMDD format')
+        print('  short.dat - list of interferograms in YYYYMMDD_YYYYMMDD format')
         print('    Ex: 20150126_20150607')
         print('        20150126_20150701')
         print('        20150126_20150725')
         print('        20150126_20150818')
-        print('  intf.list - list of interferogram pairs in SLC-style given in baseline_table.dat')
+        print('  intf.in - list of interferogram pairs in SLC-style given in baseline_table.dat')
         print('    Ex: S1A20150126_ALL_F1:S1A20150607_ALL_F1')
         print('        S1A20150126_ALL_F1:S1A20150701_ALL_F1')
         print('')
-        print('  intf_baseline.eps - plot of interferograms satisfying baseline constraints')
+        print('  baseline_plot.eps - plot of interferograms satisfying baseline constraints')
 
         sys.exit()
+
 
     # Get arguments
     prm_file = sys.argv[1];
@@ -39,16 +40,16 @@ def main():
     baseline_table = load_baseline_table(baseline_file) 
 
     # Get pairs
-    intf_list, intf_dates = select_pairs(baseline_table, prm_file)
+    intf_list, intf_dates, supermaster = select_pairs(baseline_table, prm_file)
     
-    # Write GMTSAR intferferogram list 
-    write_intf_list('intf.list', intf_list)
+    # Write intferferogram list to use with GMTSAR scripts
+    write_intf_list('intf.in', intf_list)
 
-    # Write dates to intf_list
-    write_intf_list('date.list', [dates[0].strftime('%Y%m%d') + '_' + dates[1].strftime('%Y%m%d') for dates in intf_dates])
+    # Write dates to list of interferogram directories to be generate=d
+    write_intf_list('short.dat', [dates[0].strftime('%Y%m%d') + '_' + dates[1].strftime('%Y%m%d') for dates in intf_dates])
 
     # Make baseline plot 
-    baseline_plot(intf_dates, baseline_table)
+    baseline_plot(intf_dates, baseline_table, supermaster)
 
 
 # ========== FUNCTIONS ==========
@@ -174,6 +175,7 @@ def select_pairs(baseline_table, prm_file):
     # ---------- SET UP PARAMETERS ----------
     # Get number of aquisitions
     N = len(baseline_table)  
+    print()
     print('Number of SAR scenes:', N)
 
      # Initialize interferogram key matrix (1 to make intf, 0 for no intf)
@@ -275,28 +277,49 @@ def select_pairs(baseline_table, prm_file):
 
     # Get number of interferogams to make
     n = len(intf_list)
-    print()
     print('Number of interferograms: {}'.format(n))
 
 
-    return intf_list, intf_dates
+    return intf_list, intf_dates, supermaster
 
 
-def baseline_plot(intf_dates, baseline_table):
-    fig = plt.figure(figsize=(7,4))
+def baseline_plot(intf_dates, baseline_table, supermaster):
+    fig = plt.figure(figsize=(10,6))
     ax = plt.gca()
 
+    # Plot pairs
     for date_pair in intf_dates:
         # Get corresponding baselines
         Bp_pair = [baseline_table[baseline_table['date'] == date]['Bp'].values for date in date_pair]
+
+        # Plot
         ax.plot(date_pair, Bp_pair, c='k', linewidth=1, zorder=0)
 
+
+    # Plot nodes
     for i in range(len(baseline_table)):
-        ax.scatter(baseline_table['date'][i], baseline_table['Bp'][i], marker='o', c='C0', s=10)
-        # ax.text(baseline_table['date'][i], baseline_table['Bp'][i], baseline_table['date'][i].strftime('%Y/%m/%d'))
+
+        # Change settings if master
+        if baseline_table['date'][i] == supermaster['date']:
+            c = 'r'
+            c_text = 'r'
+            s = 30
+        else:
+            c = 'C0'
+            c_text = 'k'
+            s = 20
+
+        ax.scatter(baseline_table['date'][i], baseline_table['Bp'][i], marker='o', c=c, s=20)
+
+        # Offset by 10 days/5 m for asthetics
+        ax.text(baseline_table['date'][i] + dt.timedelta(days=10), 
+                baseline_table['Bp'][i] + 5, 
+                baseline_table['date'][i].strftime('%Y/%m/%d'), 
+                size=8, c=c_text)
+    
     ax.set_ylabel('Perpendicular baseline (m)')
     ax.set_xlabel('Date')
-    plt.savefig('intf_baseline.eps')
+    plt.savefig('baseline_plot.eps')
     plt.show()
 
 
