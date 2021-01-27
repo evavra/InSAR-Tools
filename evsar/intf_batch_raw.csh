@@ -28,10 +28,10 @@ set t1 = `date`
 if ($#argv < 4) then
    set ncores = 4
 else 
-   set ncores = $4
+   set ncores = $3
 endif
 
-set swath = $3
+set swath = $2
 # cd F$swath
 # mkdir -p intf
 # cleanup.csh intf
