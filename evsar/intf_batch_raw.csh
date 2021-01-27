@@ -42,7 +42,7 @@ foreach intf (`cat $1`)
    # set date2 =  `echo $file2 |awk -F"-" '{print $4}'`
    set logfile = "phaseraw_"$intf"_F"$swath".log"
    # echo "intf_ALOS2_p2p_new.csh $file1 $file2 $2 $swath >& $logfile" >> intf_alos.cmd
-   echo "gmt grdmath F$swath/$intf/imag.grd F$swath/$intf/real.grd ATAN2 FLIPUD = F$swath/$intf/phaseraw.grd >& $logfile" >> phaseraw.cmd
+   echo "gmt grdmath F$swath/intf/$intf/imag.grd F$swath/intf/$intf/real.grd ATAN2 FLIPUD = F$swath/intf/$intf/phaseraw.grd >& $logfile" >> phaseraw.cmd
 end
 
 parallel --jobs $ncores < phaseraw.cmd
