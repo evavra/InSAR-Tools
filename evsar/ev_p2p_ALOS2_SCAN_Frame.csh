@@ -44,7 +44,8 @@ unset noclobber
 # determine file names
 #
   set pth = `pwd`
-  foreach swath (1 2 3 4 5)
+  # foreach swath (1 2 3 4 5)
+  foreach swath (2)
     echo "Linking files for Subswath $swath ..."
     mkdir F$swath
     cd F$swath
@@ -79,7 +80,7 @@ echo "########## PROCESSING DATA ##########"
 # process data
 #   
   if ($seq == 0) then
-    foreach swath (1 2 3 4 5)
+    foreach swath (2)
       cd F$swath
       # sed "s/.*skip_stage.*/skip_stage = 2,3,4,5,6/g" $3 > tmp_config
       # p2p_processing.csh ALOS2_SCAN $1"-F"$swath $2"-F"$swath tmp_config
@@ -96,7 +97,7 @@ echo "########## PROCESSING DATA ##########"
       cd ..
     end
   else if ($seq == 1) then
-    foreach swath (1 2 3 4 5)
+    foreach swath (2)
       cd F$swath
       # sed "s/.*skip_stage.*/skip_stage = 2,3,4,5,6/g" $3 > tmp_config
       # p2p_processing.csh ALOS2_SCAN $1"-F"$swath $2"-F"$swath tmp_config >&log&
@@ -105,7 +106,7 @@ echo "########## PROCESSING DATA ##########"
     end
     wait 
 
-    foreach swath (1 2 3 4 5)
+    foreach swath (2)
       cd F$swath/raw
       samp_slc.csh $1"-F"$swath 3350 0 
       samp_slc.csh $2"-F"$swath 3350 0
@@ -113,7 +114,7 @@ echo "########## PROCESSING DATA ##########"
     end 
     wait 
 
-    foreach swath (1 2 3 4 5)
+    foreach swath (2)
       cd F$swath
       # sed "s/.*skip_stage.*/skip_stage = 1/g" $3 > tmp_config
       # p2p_processing.csh ALOS2_SCAN $1"-F"$swath $2"-F"$swath tmp_config >&log&
