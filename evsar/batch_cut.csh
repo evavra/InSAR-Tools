@@ -33,6 +33,6 @@ set region    = $5
 foreach intf (`cat $intf_list`)
     echo "Cutting $intf..."
 
-    echo "grdcut $intf_dir$file_type.grd -G$intf_dir$new_file.grd -R$region"
+    echo "grdcut $intf_dir/$file_type.grd -G$intf_dir/$new_file.grd -R$region"
 
 end
