@@ -23,14 +23,14 @@ endif
 
 
 set intf_list = $1
-set file_type = $2
-set new_file  = $3
-set region    = $4
+set intf_dir  = $2
+set file_type = $3
+set new_file  = $4
+set region    = $5
 
 
 # Loop over files. Run everything from top-level directory
-foreach intf (`cat $intf_list`)
+foreach intf (`cat $1`)
     echo "Cutting $intf..."
     echo "grdcut $intf_dir/$file_type.grd -G$intf_dir/$new_file.grd -R$region"
-
 end
