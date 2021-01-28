@@ -32,5 +32,5 @@ set region    = $5
 # Loop over files. Run everything from top-level directory
 foreach intf (`cat $intf_list`)
     echo "Cutting $intf..."
-    echo "grdcut $intf_dir/$file_type.grd -G$intf_dir/$new_file.grd -R$region"
+    grdcut $intf_dir/$intf/$file_type.grd -G$intf_dir/$intf/$new_file.grd -R$region
 end
