@@ -28,16 +28,11 @@ set file_type = $3
 set new_file  = $4
 set region    = $5
 
-# Move into interferogram directory
-cd $intf_dir
 
-# Loop over files
+# Loop over files. Run everything from top-level directory
 foreach intf (`cat $intf_list`)
     echo "Cutting $intf..."
 
-    cd $intf
+    echo "grdcut $intf_dir$file_type.grd -G$intf_dir$new_file.grd -R$region"
 
-    echo "grdcut $file_type.grd -G$new_File.grd -R$region"
-
-    cd ..
 end
