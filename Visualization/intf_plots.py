@@ -43,7 +43,7 @@ def main():
 
         # Get intf directories
         # intf_dir = np.sort(glob.glob('20*_20*'))
-        intf_list = np.sort(glob.glob(grd_type))
+        intf_list = np.sort(glob.glob(grd_path))
 
         if len(intf_dir) == 0:
             print('Error: No interferograms identified in {}'.format(subprocess.call('pwd')))
@@ -51,15 +51,17 @@ def main():
 
         # Loop through files and make plots
         for intf_path in intf_list:
-            intf_path = dir + '/' + grd_type + '.grd'
-        # for dir in intf_dir:
-            # intf_path = dir + '/' + grd_type + '.grd'
+
+            pieces = intf_path.split('/')
+            new_name = pieces[-2] + '_' + pieces[-1]
+            
             with xr.open_dataset(intf_path) as grd:
 
                 fig, ax = plt.subplots(figsize=(w, h))
                 ax.imshow(grd['z'], cmap=cmap)
                 
-                save_path = out_dir + '/' + dir + '_' + grd_type + '.grd'
+                save_path = out_dir + '/' + new_name
+                # save_path = out_dir + '/' + dir + '_' + grd_type + '.grd'
                 fig.savefig(save_path, dpi=dpi)
 
 
