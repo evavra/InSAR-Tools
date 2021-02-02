@@ -16,10 +16,10 @@ def main():
 
     Make interferogram plots for a given datraset
 
-    Usage: python intf_plots.py grd_type out_dir dpi width height cmap
+    Usage: python intf_plots.py grd_path out_dir dpi width height cmap
 
     INPUTS:
-    grd_type - grd file stem for grids to visualize
+    grd_path - wildcard path for grd files to plot
     out_dir  - name of directory to save files to
     dpi      - dpi for resultant images
     width, height - x, y dimensions of figure in inches
@@ -31,7 +31,7 @@ def main():
 
     else:
         # Define argument variables
-        grd_type = sys.argv[1]
+        grd_path = sys.argv[1]
         out_dir  = sys.argv[2] 
         dpi      = sys.argv[3]
         h        = sys.argv[4]
@@ -42,15 +42,18 @@ def main():
         os.mkdir('out_dir')
 
         # Get intf directories
-        intf_dir = np.sort(glob.glob('20*_20*'))
+        # intf_dir = np.sort(glob.glob('20*_20*'))
+        intf_list = np.sort(glob.glob(grd_type))
 
         if len(intf_dir) == 0:
             print('Error: No interferograms identified in {}'.format(subprocess.call('pwd')))
             sys.exit()
 
-        # Loop through directories and make plots
-        for dir in intf_dir:
+        # Loop through files and make plots
+        for intf_path in intf_list:
             intf_path = dir + '/' + grd_type + '.grd'
+        # for dir in intf_dir:
+            # intf_path = dir + '/' + grd_type + '.grd'
             with xr.open_dataset(intf_path) as grd:
 
                 fig, ax = plt.subplots(figsize=(w, h))
