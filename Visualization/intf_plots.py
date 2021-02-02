@@ -39,7 +39,8 @@ def main():
         cmap     = sys.argv[6]
 
         # Make output directory
-        os.mkdir('out_dir')
+        if len(glob.glob(out_dir)) == 0
+            os.mkdir(out_dir)
 
         # Get intf directories
         # intf_dir = np.sort(glob.glob('20*_20*'))
@@ -54,7 +55,7 @@ def main():
 
             pieces = intf_path.split('/')
             new_name = pieces[-2] + '_' + pieces[-1]
-            
+
             with xr.open_dataset(intf_path) as grd:
 
                 fig, ax = plt.subplots(figsize=(w, h))
