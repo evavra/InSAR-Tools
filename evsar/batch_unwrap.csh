@@ -12,7 +12,7 @@
 #   cd ..
 #
 
-if ($#argv != 2) then
+if ($#argv != 5) then
     echo ""
     echo "Unwrap batch of interferograms in parallel"
     echo ""
