@@ -17,7 +17,7 @@ if ($#argv != 5) then
     echo "Unwrap batch of interferograms in parallel"
     echo ""
     echo "NOTE:" 
-    ehoc " - GNU parallel must be installed to use batch_unwrap.csh"
+    echo " - GNU parallel must be installed to use batch_unwrap.csh"
     echo " - Subroutine unwrap_intf.csh must be located in path or current directory (example enclosed)"
     echo " - Script may be modified to send email to user. Modify address accordingly"
     echo ""
