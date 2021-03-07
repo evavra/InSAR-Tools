@@ -45,9 +45,9 @@ set n_cores               = $5
 set d1 = `date`
 
 # Create individual unwrapping jobs
-foreach line (`awk '{print $0}' $1`)
-    # Assumes no phase discontinuities are present in time-series - modify '0' argument if so.
-    echo "unwrap_intf.csh $line $correlation_threshold 0 > log_$line.txt" >> unwrap.cmd
+foreach line (`awk '{print $0}' $intf_list`)
+    # Assumes no phase discontinuities are present in time-series - unwrap_intf.csh will need to be modified if so.
+    echo "unwrap_intf.csh $line $correlation_threshold > log_$line.txt" >> batch_unwrap.cmd
 end
 
 # Initiate parallel batch of jobs
@@ -63,8 +63,8 @@ set d2 = `date`
 rm -f batch_unwrap.cmd
 
 # Send notice email to user
-path = `pwd`
-echo "Job started on $d1 and finished on $d2 at $path "| mail -s "Unwrapping finished" evavra@ucsd.edu
+set dir = `pwd`
+echo "Job started on $d1 and finished on $d2 at $dir "| mail -s "Unwrapping finished" evavra@ucsd.edu
 
 
 # --------------- Example unwrap_intf.csh ----------------
