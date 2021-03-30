@@ -5,7 +5,7 @@ if ($#argv < 3) then
     echo ""
     echo "Rename set of grd files."
     echo ""
-    echo "Usage: batch_rename.csh intf_list curent_name new_name"
+    echo "Usage: batch_rename.csh intf_list intf_dir curent_name new_name"
     echo ""
     echo "intf_list  - list of interferogram directories"
     echo "    e.g."
@@ -23,8 +23,8 @@ endif
 
 set intf_list = $1
 set intf_dir  = $2
-set file_type = $3
-set new_file  = $4
+set current_name = $3
+set new_name  = $4
 set region    = $5
 
 
