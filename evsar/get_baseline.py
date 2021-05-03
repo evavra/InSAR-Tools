@@ -44,26 +44,31 @@ def main():
 
 
     # Get arguments
-    prm_file = sys.argv[1];
+    prm_file      = sys.argv[1];
     baseline_file = sys.argv[2];
-    print(baseline_file)
+
 
     # Read in baseline table
     baseline_table = load_baseline_table(baseline_file) 
 
+
     # Get pairs
     intf_inputs, intf_dates, subset_inputs, subset_dates, supermaster = select_pairs(baseline_table, prm_file)
     
+
     # Write intferferogram list to use with GMTSAR scripts
     write_intf_list('intf.in', intf_inputs)
 
+
     # Write dates to list of interferogram directories to be generate=d
     write_intf_list('short.dat', [dates[0].strftime('%Y%m%d') + '_' + dates[1].strftime('%Y%m%d') for dates in intf_dates])
+
 
     # Also write interferogram subset lists
     for key in subset_inputs:
         write_intf_list('intf.in.' + key, subset_inputs[key])
         write_intf_list('short.dat.' + key, [dates[0].strftime('%Y%m%d') + '_' + dates[1].strftime('%Y%m%d') for dates in subset_dates[key]])
+
 
     # Make baseline plot 
     baseline_plot(intf_dates, baseline_table, supermaster=supermaster)
@@ -198,12 +203,12 @@ def select_pairs(baseline_table, prm_file):
 
     # Check pair selection parameters
     SEQUENTIAL = load_PRM(prm_file, 'SEQUENTIAL')
-    SKIP_N     = load_PRM(prm_file, 'SKIP_N')
+    SKIP     = load_PRM(prm_file, 'SKIP')
     Y2Y_INTFS  = load_PRM(prm_file, 'Y2Y_INTFS')
 
     # Load baseline parameters
     defaults = [0, 0, 0] # Default values
-    Bp_max   = load_PRM(prm_file,'BP_MAX');
+    Bp_max   = load_PRM(prm_file, 'BP_MAX');
     t_min    = load_PRM(prm_file, 'DT_MIN');
     t_max    = load_PRM(prm_file, 'DT_MAX');
 
@@ -294,31 +299,31 @@ def select_pairs(baseline_table, prm_file):
         subset_IDs['sequential'] = ID_SEQUENTIAL
 
 
-    # If SKIP_N is specified, skip every nth pair and make sequential interferograms
-    if SKIP_N > 0:
-        print('Making sequential interferograms with skip = {}'.format(int(SKIP_N)))
-        ID_SKIP_N = np.zeros((N, N)) 
-        
+    # If SKIP is specified, make all n-order pairs
+    if SKIP > 0:
+        print('Making sequential interferograms with skip = {}'.format(int(SKIP)))
+        ID_SKIP = np.zeros((N, N)) 
+
         for i in range(N):
             for j in range(N):
-                # if np.mod(i, SKIP_N + 1) == 0:    
-                if abs(j - i) == SKIP_N + 1:
-                    ID_SKIP_N[i, j] = 1
+                # if np.mod(i, SKIP + 1) == 0:    
+                if abs(j - i) == SKIP + 1:
+                    ID_SKIP[i, j] = 1
 
-        subset_IDs['skip_{}'.format(int(SKIP_N))] = ID_SKIP_N
+        subset_IDs['skip_{}'.format(int(SKIP))] = ID_SKIP
 
 
-    # # If SKIP_N is specified, skip every nth pair and make sequential interferograms
-    # if SKIP_N > 0:
-    #     print('Making sequential interferograms with skip = {}'.format(int(SKIP_N)))
-    #     ID_SKIP_N = np.zeros((N, N)) 
+    # # If SKIP is specified, skip every nth pair and make sequential interferograms
+    # if SKIP > 0:
+    #     print('Making sequential interferograms with skip = {}'.format(int(SKIP)))
+    #     ID_SKIP = np.zeros((N, N)) 
     #     for i in range(N):
     #         for j in range(N):
-    #             if np.mod(i, SKIP_N + 1) == 0:    
-    #                 if abs(j - i) == SKIP_N + 1:
-    #                     ID_SKIP_N[i, j] = 1
+    #             if np.mod(i, SKIP + 1) == 0:    
+    #                 if abs(j - i) == SKIP + 1:
+    #                     ID_SKIP[i, j] = 1
 
-    #         subset_IDs['skip_{}'.format(int(SKIP_N))] = ID_SKIP_N
+    #         subset_IDs['skip_{}'.format(int(SKIP))] = ID_SKIP
 
     # # OLD
     # # Create initial and repeat matricies of dimension N x N
