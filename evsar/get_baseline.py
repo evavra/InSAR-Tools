@@ -139,11 +139,7 @@ def load_baseline_table(file_name):
     """
 
     baseline_table = pd.read_csv(file_name, header=None, delim_whitespace=True)  # Read table
-
-    try:
-        baseline_table.columns = ['scene_id', 'sar_time', 'sar_day', 'B_para', 'Bp']
-    except ValueError:
-        raise e
+    baseline_table.columns = ['scene_id', 'sar_time', 'sar_day', 'B_para', 'Bp']
 
     dates = []
 
@@ -291,23 +287,38 @@ def select_pairs(baseline_table, prm_file):
         print('Making sequential interferograms')
         for i in range(N):
             for j in range(N):
-                if np.mod(i, 1) == 0:    
-                    if abs(j - i) == 1:
-                        ID_SEQUENTIAL[i, j] = 1
+                # if np.mod(i, 1) == 0:    
+                if abs(j - i) == 1:
+                    ID_SEQUENTIAL[i, j] = 1
 
         subset_IDs['sequential'] = ID_SEQUENTIAL
+
 
     # If SKIP_N is specified, skip every nth pair and make sequential interferograms
     if SKIP_N > 0:
         print('Making sequential interferograms with skip = {}'.format(int(SKIP_N)))
         ID_SKIP_N = np.zeros((N, N)) 
+        
         for i in range(N):
             for j in range(N):
-                if np.mod(i, SKIP_N + 1) == 0:    
-                    if abs(j - i) == SKIP_N + 1:
-                        ID_SKIP_N[i, j] = 1
+                # if np.mod(i, SKIP_N + 1) == 0:    
+                if abs(j - i) == SKIP_N + 1:
+                    ID_SKIP_N[i, j] = 1
 
-            subset_IDs['skip_{}'.format(int(SKIP_N))] = ID_SKIP_N
+        subset_IDs['skip_{}'.format(int(SKIP_N))] = ID_SKIP_N
+
+
+    # # If SKIP_N is specified, skip every nth pair and make sequential interferograms
+    # if SKIP_N > 0:
+    #     print('Making sequential interferograms with skip = {}'.format(int(SKIP_N)))
+    #     ID_SKIP_N = np.zeros((N, N)) 
+    #     for i in range(N):
+    #         for j in range(N):
+    #             if np.mod(i, SKIP_N + 1) == 0:    
+    #                 if abs(j - i) == SKIP_N + 1:
+    #                     ID_SKIP_N[i, j] = 1
+
+    #         subset_IDs['skip_{}'.format(int(SKIP_N))] = ID_SKIP_N
 
     # # OLD
     # # Create initial and repeat matricies of dimension N x N
