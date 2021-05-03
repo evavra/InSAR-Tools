@@ -46,6 +46,7 @@ def main():
     # Get arguments
     prm_file = sys.argv[1];
     baseline_file = sys.argv[2];
+    print(baseline_file)
 
     # Read in baseline table
     baseline_table = load_baseline_table(baseline_file) 
@@ -138,7 +139,11 @@ def load_baseline_table(file_name):
     """
 
     baseline_table = pd.read_csv(file_name, header=None, delim_whitespace=True)  # Read table
-    baseline_table.columns = ['scene_id', 'sar_time', 'sar_day', 'B_para', 'Bp']
+
+    try:
+        baseline_table.columns = ['scene_id', 'sar_time', 'sar_day', 'B_para', 'Bp']
+    except ValueError:
+        raise e
 
     dates = []
 
@@ -388,6 +393,8 @@ def baseline_plot(intf_dates, baseline_table, supermaster={}):
         Bp_pair = [baseline_table[baseline_table['date'] == date]['Bp'].values for date in date_pair]
 
         # Plot
+        print(date_pair, Bp_pair)
+
         ax.plot(date_pair, Bp_pair, c='k', linewidth=1, zorder=0)
 
 
