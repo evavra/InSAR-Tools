@@ -39,7 +39,7 @@ def main():
         cmap     = sys.argv[6]
 
         # Make output directory
-        if len(glob.glob(out_dir)) == 0
+        if len(glob.glob(out_dir)) == 0:
             os.mkdir(out_dir)
 
         # Get intf directories
