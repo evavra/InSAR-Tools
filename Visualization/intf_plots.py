@@ -1,4 +1,4 @@
-#!/bin/python -f
+#!/bin/python3 -f
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,7 +19,7 @@ def main():
     Usage: python intf_plots.py grd_path out_dir dpi width height cmap
 
     INPUTS:
-    grd_path - wildcard path for grd files to plot
+    grd_path - wildcard path for grd files to plot (note: must be bounded by quotations)
     out_dir  - name of directory to save files to
     dpi      - dpi for resultant images
     width, height - x, y dimensions of figure in inches
@@ -33,20 +33,20 @@ def main():
         # Define argument variables
         grd_path = sys.argv[1]
         out_dir  = sys.argv[2] 
-        dpi      = sys.argv[3]
-        h        = sys.argv[4]
-        w        = sys.argv[5]
+        dpi      = int(sys.argv[3])
+        h        = int(sys.argv[4])
+        w        = int(sys.argv[5])
         cmap     = sys.argv[6]
 
         # Make output directory
-        if len(glob.glob(out_dir)) == 0
+        if len(glob.glob(out_dir)) == 0:
             os.mkdir(out_dir)
 
         # Get intf directories
         # intf_dir = np.sort(glob.glob('20*_20*'))
         intf_list = np.sort(glob.glob(grd_path))
 
-        if len(intf_dir) == 0:
+        if len(intf_list) == 0:
             print('Error: No interferograms identified in {}'.format(subprocess.call('pwd')))
             sys.exit()
 
@@ -54,8 +54,12 @@ def main():
         for intf_path in intf_list:
 
             pieces = intf_path.split('/')
-            new_name = pieces[-2] + '_' + pieces[-1]
-
+            
+            if pieces[-2] == '.':
+                new_name = pieces[-1][:-4] + '.png'
+            else:
+                new_name = pieces[-2] + '_' + pieces[-1][:-4] + '.png'
+            
             with xr.open_dataset(intf_path) as grd:
 
                 fig, ax = plt.subplots(figsize=(w, h))
@@ -64,6 +68,7 @@ def main():
                 save_path = out_dir + '/' + new_name
                 # save_path = out_dir + '/' + dir + '_' + grd_type + '.grd'
                 fig.savefig(save_path, dpi=dpi)
+                plt.close()
 
 
 
