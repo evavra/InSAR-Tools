@@ -152,7 +152,7 @@ def load_baseline_table(file_name):
     for scene in baseline_table['scene_id']:
 
         # Handle Sentinel-1 IDs
-        if 'S1A' in scene or 'S1A' in scene:
+        if 'S1A' in scene or 'S1B' in scene or 's1a' in scene or 's1b' in scene:
             for i in range(len(scene) - 8):
                 tmp_str = scene[i:i + 8]
                 if tmp_str.isdigit():
