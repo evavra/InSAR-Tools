@@ -1,52 +1,54 @@
 #!/home/class239/anaconda3/bin/python3
+import sys
 import numpy as np
 import pandas as pd
 import datetime as dt
 import matplotlib.pyplot as plt
-import sys
 
-# ========== SPECIFY FILEPATHS ==========
+# ========== DRIVING METHOD ==========
 
 def main():
     """
     Generate list of interferograms to process and baseline plot given baseline table and processing parameters
     
-    Usage: get_baseline.py prm_file baseline_file
+    Usage A - generate default prm_file
+        get_baseline.py default
     
+    Usage B -  Make interferogram selections
+        get_baseline.py prm_file baseline_file
+
     INPUT:
-      prm_file - parameter (PRM) file containing date and baseline values for interferogram selection
-      baseline_file - GMTSAR baseline table file
+    prm_file - parameter (PRM) file containing date and baseline values for interferogram selection
+    baseline_file - GMTSAR baseline table file
     
     OUTPUT:
-      short.dat - list of interferograms in YYYYMMDD_YYYYMMDD format
-        Ex: 20150126_20150607')
-            20150126_20150701')
-            20150126_20150725')
-            20150126_20150818')
-    
-      intf.in - list of interferogram pairs in SLC naming convention, for input into GMTSAR interferogram scripts
-        Ex: S1A20150126_ALL_F1:S1A20150607_ALL_F1
-            S1A20150126_ALL_F1:S1A20150701_ALL_F1
-    
-      Note: subsets of these will be generated which correspond to the selection parameters provided in the prm_file
+    short.dat - list of interferograms in YYYYMMDD_YYYYMMDD format
+    intf.in   - list of interferogram pairs in SLC naming convention (e.g. S1A20150126_ALL_F1:S1A20150607_ALL_F1), for input into GMTSAR interferogram scripts 
+        Note: subsets of these lists will be generated which correspond to the selection parameters provided in the prm_file
         Ex:
-        intf.in.sequential for SEQUENTIAL = True
-        intf.in.skip_2 for Skip = 2
-        intf.in.y2y for Y2Y_INTFS  = True
+        intf.in.SEQ for SEQ = True
+        intf.in.ORD_2 for ORD = 2
+        intf.in.LONG for LONG_INTFS  = True
 
-      baseline_plot.eps - plot of interferograms satisfying baseline constraints
-      """
+    baseline_plot.eps - plot of interferograms selected
+    """
 
-    # Return docstring if arguments unspecified
-    if len(sys.argv) < 3:
-        print(main.__doc__)
+    # If specified, write default parameter file
+    if (len(sys.argv) == 2) and sys.argv[1] == 'default':
+        print('Writing default.PRM')
+
+        with open('default.PRM', 'w') as file:
+            file.write(default_prm_file.__doc__)
         sys.exit()
 
+    # Return docstring if arguments unspecified
+    elif len(sys.argv) < 3:
+        print(main.__doc__)
+        sys.exit()
 
     # Get arguments
     prm_file      = sys.argv[1];
     baseline_file = sys.argv[2];
-
 
     # Read in baseline table
     baseline_table = load_baseline_table(baseline_file) 
@@ -129,7 +131,6 @@ def load_PRM(prm_file, var_in):
 
     # Check for variable
     if var_in not in prm:
-        # print('Error: {} not found in {}'.format(var_in, prm_file))
         val_out = None
     else:
         # Extract parameter value
@@ -185,7 +186,7 @@ def load_baseline_table(file_name):
 
 def write_intf_list(file_name, intf_list):
     """
-    Write list of interferograms to file_name specified.
+    Write list of interferograms to specified file_name.
     """
 
     with open(file_name, 'w') as file:
@@ -194,26 +195,30 @@ def write_intf_list(file_name, intf_list):
 
 
 def select_pairs(baseline_table, prm_file):
+    """
+    Select interferogmetric pairs based off of parameters specified in prm_file
+    """
 
     # ---------- SET THINGS UP ----------
     # Get number of aquisitions
     N = len(baseline_table)  
     print()
-    print('Number of SAR scenes:', N)
+    print('Number of SAR scenes =', N)
 
     # Check pair selection parameters
-    SEQUENTIAL = load_PRM(prm_file, 'SEQUENTIAL')
-    SKIP     = load_PRM(prm_file, 'SKIP')
-    Y2Y_INTFS  = load_PRM(prm_file, 'Y2Y_INTFS')
+    SEQ  = load_PRM(prm_file, 'SEQ')
+    ORD  = load_PRM(prm_file, 'ORD')
+    LONG = load_PRM(prm_file, 'LONG')
 
     # Load baseline parameters
-    defaults = [0, 0, 0] # Default values
-    Bp_max   = load_PRM(prm_file, 'BP_MAX');
-    t_min    = load_PRM(prm_file, 'DT_MIN');
-    t_max    = load_PRM(prm_file, 'DT_MAX');
+    defaults = [0, 0, 0, 0] # Default values
+    BL_MODE  = load_PRM(prm_file, 'BL_MODE')
+    BP_MAX   = load_PRM(prm_file, 'BP_MAX')
+    DT_MIN   = load_PRM(prm_file, 'DT_MIN')
+    DT_MAX   = load_PRM(prm_file, 'DT_MAX')
 
     # If any parameter is unspecified, instate default values
-    for param, value, default in zip(['BP_MAX', 'DT_MIN', 'DT_MAX'], [Bp_max, t_min, t_max], defaults):
+    for param, value, default in zip(['BP_MAX', 'DT_MIN', 'DT_MAX'], [BL_MODE, BP_MAX, DT_MIN, DT_MAX], defaults):
         if value == None:
             print('{} not specified, default = {}'.format(param, default))
             param = default
@@ -224,129 +229,165 @@ def select_pairs(baseline_table, prm_file):
     # Get supermaster scene
     DATE_MASTER = load_PRM(prm_file, 'DATE_MASTER');
 
-    if DATE_MASTER == None:
+    if DATE_MASTER not in baseline_table['date']:
         # Find scene with baseline closest to mean if no date is specified in PRM file
         supermaster_tmp = baseline_table[abs(baseline_table['Bp'] - Bp_mean) == min(abs(baseline_table['Bp'] - Bp_mean)) ]
-        print('{} not specified, using scene with baseline closest to stack mean ({} m):'.format('DATE_MASTER', np.round(Bp_mean, 2)))
-        # print(  supermaster_tmp['date'].values[0].strftime('%Y%m%d', supermaster_tmp['Bp'].values[0]))
-        # print(  supermaster_tmp['date'], supermaster_tmp['Bp'])
-        print( 'Date:', pd.to_datetime(supermaster_tmp['date'].values[0]).strftime('%Y/%m/%d'), '    Baseline: ', np.round(supermaster_tmp['Bp'].values[0], 2), 'm')
+        print()
+        print('DATE_MASTER = {} is not found in dataset'.format(DATE_MASTER))
+        print('Using scene with baseline closest to stack mean ({} m):'.format(np.round(Bp_mean, 2)))
+        print('Master date = {} '.format(pd.to_datetime(supermaster_tmp['date'].values[0]).strftime('%Y/%m/%d')))
+        print('Baseline    = {} m'.format(np.round(supermaster_tmp['Bp'].values[0], 2)))
+    
     else:
-        print('Using supermaster date {}'.format(DATE_MASTER))
+        print('DATE_MASTER = {}'.format(DATE_MASTER))
         supermaster_tmp = baseline_table[baseline_table['date'] == DATE_MASTER]
 
     # Convert to dictionary
     supermaster = {}
+
     for col in zip(supermaster_tmp.columns):
         supermaster[col[0]] = supermaster_tmp[col[0]].values[0]
         
 
-    # ---------- ACTUAL INTERFEROGRAM SELECTION ----------
+    # ---------- INTERFEROGRAM SELECTION ----------
     # This portion of the code operates by 'turning on' elements of a NxN network matrix corresponding to all possible interferometric pairs
     # All values start 'off'
 
      # Initialize dictionary to contain a network matrix for each subset of interferograms to be made
     subset_IDs = {}
 
-    # If Y2Y_INTFS is specified, identify scenes which fit date range provided by Y2Y_START and Y2Y_END
-    if Y2Y_INTFS > 0:
-        ID_Y2Y_INTFS = np.zeros((N, N)) 
-
-        # Read dates 
-        Y2Y_START = load_PRM(prm_file,'Y2Y_START');
-        Y2Y_END = load_PRM(prm_file,'Y2Y_END');
-
-        # Or set defaults
-        for param, value, default in zip(['Y2Y_START'], [Y2Y_START, Y2Y_END], [dt.datetime(0,0,0,0,0,0), datetime.today()]):
-            if value == None:
-                print('{} not specified, default = {}'.format(param, default))
-                param = default
-
-        # Identify dates in stack that fall within range
-        y2y_scenes = baseline_table[[(date.month >= Y2Y_START) & (date.month <= Y2Y_END) for date in baseline_table['date']]]
-
-        # Calculate perpendicular baselines for all pairs
-        for initial_id, date1 in zip(y2y_scenes.index, y2y_scenes['date']):
-            for repeat_id, date2 in zip(y2y_scenes.index, y2y_scenes['date']):
-
-                # Select year to year pairs
-                if (date1.year != date2.year) and (date1 < date2):
-                    continue
-                    # ACTUALLY WRITE THIS SOMETIME ELLIS
-
-    # OLD
-    # # If SEQ_INTFS is specified, Select every nth pair using incremement specified by SEQ_INTFS
-    #   if SEQ_INTFS > 0:
-    #       print('Making sequential interferograms of order: {}'.format(np.arange(0, SEQ_INTFS+1)[1:]))
-    #       for n in range(int(SEQ_INTFS)):
-    #           inc = n + 1
-    #           for i in range(N):
-    #               for j in range(N):
-    #                   if np.mod(i, inc) == 0:    
-    #                       if abs(j - i) == inc:
-    #                           ID[i, j] = 1
-
-    # If SEQUENTIAL is specified, make every sequential interferogram
-    if bool(SEQUENTIAL) == True:
-        ID_SEQUENTIAL = np.zeros((N, N)) 
+    # If SEQ is specified, select every sequential interferogram
+    if bool(SEQ) == True:
+        print()
         print('Making sequential interferograms')
+
+        ID_SEQ = np.zeros((N, N)) 
+
         for i in range(N):
             for j in range(N):
                 # if np.mod(i, 1) == 0:    
                 if abs(j - i) == 1:
-                    ID_SEQUENTIAL[i, j] = 1
+                    ID_SEQ[i, j] = 1
 
-        subset_IDs['sequential'] = ID_SEQUENTIAL
+        subset_IDs['SEQ'] = ID_SEQ
 
-
-    # If SKIP is specified, make all n-order pairs
-    if SKIP > 0:
-        print('Making sequential interferograms with skip = {}'.format(int(SKIP)))
-        ID_SKIP = np.zeros((N, N)) 
+    # If ORD is specified, select all n-order pairs
+    if ORD > 0:
+        print('Making all order-{} interferograms'.format(int(ORD)))
+        ID_ORD = np.zeros((N, N)) 
 
         for i in range(N):
             for j in range(N):
-                # if np.mod(i, SKIP + 1) == 0:    
-                if abs(j - i) == SKIP + 1:
-                    ID_SKIP[i, j] = 1
+                # if np.mod(i, ORD + 1) == 0:    
+                if abs(j - i) == ORD:
+                    ID_ORD[i, j] = 1
 
-        subset_IDs['skip_{}'.format(int(SKIP))] = ID_SKIP
+        subset_IDs['ORD_{}'.format(int(ORD))] = ID_ORD
 
+    # If LONG is specified, identify scenes which fit date range provided by LONG_START and LONG_END
+    if bool(LONG) == True:
+        print('Making long interferograms')
 
-    # # If SKIP is specified, skip every nth pair and make sequential interferograms
-    # if SKIP > 0:
-    #     print('Making sequential interferograms with skip = {}'.format(int(SKIP)))
-    #     ID_SKIP = np.zeros((N, N)) 
-    #     for i in range(N):
-    #         for j in range(N):
-    #             if np.mod(i, SKIP + 1) == 0:    
-    #                 if abs(j - i) == SKIP + 1:
-    #                     ID_SKIP[i, j] = 1
+        ID_LONG = np.zeros((N, N)) 
 
-    #         subset_IDs['skip_{}'.format(int(SKIP))] = ID_SKIP
+        # Read dates 
+        LONG_START = load_PRM(prm_file,'LONG_START');
+        LONG_END   = load_PRM(prm_file,'LONG_END');
 
-    # # OLD
-    # # Create initial and repeat matricies of dimension N x N
-    # initials = np.array(list(baseline_table['date'])).repeat(N).reshape(N, N)
-    # repeats = np.array(list(baseline_table['date'])).repeat(N).reshape(N, N).T
+        # Or set defaults
+        for param, value, default in zip(['LONG_START'], [LONG_START, LONG_END], [150, 270]):
+            if value == None:
+                print('{} not specified, default = {}'.format(param, default))
+                param = default
 
+        # Identify all dates in stack that fall within Julian day range
+        long_scenes = baseline_table[[(date.timetuple().tm_yday >= LONG_START) & (date.timetuple().tm_yday <= LONG_END) for date in baseline_table['date']]]
+        # years       = np.unique([date.year for date in baseline_table['date']])
+        
+        # Initialize while loop
+        i = 0
+        complete = False
+        jday0 = baseline_table['date'][i].timetuple().tm_yday # Julian day of first aquisition
+        year0 = baseline_table['date'][i].year # year of first aquisition
 
-    # # Loop through indicies to get pair dates
-    # intf_list = []
-    # intf_dates = []
+        # If first scene precedes window, make first pair in same year. Otherwise, make first pair in next year 
+        if jday0 < LONG_START:
+            year = year0
+        else:
+            year = year0 + 1
 
-    # for i in range(len(ID)):
-    #     for j in range(len(ID[0])):
-    #         if ID[i, j] == 1 and initials[i, j] < repeats[i, j]:  # We only want the upper half of the matrix, so ignore intf pairs where 'initial' comes after 'repeat'
-    #             # intf_list.append('S1_' + initials[i, j].strftime('%Y%m%d') + '_ALL_F2:S1_' + repeats[i, j].strftime('%Y%m%d') + '_ALL_F2')
-    #             intf_list.append(baseline_table['scene_id'][i] + ':' + baseline_table['scene_id'][j])
-    #             intf_dates.append([baseline_table['date'][i],baseline_table['date'][j]])
+        # Pair current scene with baseline-minimizing scene in next available window
+        while complete == False:
+
+            # From 'long_scenes', identify first window
+            long_scenes0 = []
+
+            while len(long_scenes0) == 0:
+                start0       = dt.datetime.strptime(str(int(year*1000 + LONG_START)), '%Y%j') # Convert dates from ints to str so datetime can use them
+                end0         = dt.datetime.strptime(str(int(year*1000 + LONG_END)), '%Y%j')
+                long_scenes0 = long_scenes[(long_scenes['date'] >= start0) & (long_scenes['date'] <= end0)]
+                year += 1
+
+                # Once the year of the final scene is reached, if the scene is in or before the window, set it to be the reference image scene
+                if (year == baseline_table['date'].iloc[-1].year) and (baseline_table['date'][i].timetuple().tm_yday <= LONG_END):
+                    long_scenes0 = baseline_table[baseline_table['date'] == baseline_table['date'].iloc[-1]] # This is silly indexing, but it must be to work.
+                    complete = True
+                    # Otherwise, continue for one more pair
+
+                # If the later case is not triggered then the this one will be.
+                if year > baseline_table['date'].iloc[-1].year: 
+                    long_scenes0 = baseline_table.iloc[-1, :]
+                    complete = True
+
+            # Find index of scene within window that minimizes the perpendicular baseline with respect to the initial scene
+            j = (abs(baseline_table['Bp'][i] - long_scenes0['Bp'])).idxmin()
+
+            # Turn element on in subset array
+            ID_LONG[i, j] = 1
+
+            # Reset index
+            i = j
+
+        subset_IDs['LONG'] = ID_LONG
+
+    # If BL_MODE is nonzero, use baseline constraints
+    if BL_MODE > 0:
+        print()
+        print('Max. perpendicular baseline = {:.0f} m'.format(BP_MAX))
+        print('Min. epoch length           = {:.0f} days'.format(DT_MIN))
+        print('Max. epoch length           = {:.0f} days'.format(DT_MAX))
+
+        ID_BASELINE = np.zeros((N, N)) 
+
+        # Loop over all pairs
+        for i in range(N):
+            for j in range(N):
+                # Perpendicular baseline
+                dp = baseline_table['Bp'][i] - baseline_table['Bp'][j]
+
+                # Epoch length
+                dT = (baseline_table['date'][j] - baseline_table['date'][i]).days
+
+                # Select if all three limits are satisfied
+                if (abs(dp) < BP_MAX) and (dT >= DT_MIN) and (dT <= DT_MAX):
+                    ID_BASELINE[i, j] = 1
+
+        if BL_MODE == 1:
+            # Include all interferograms satisfying baseline constraints
+            print('Including all intereferograms satisfying baseline constraints')
+            subset_IDs['BL'] = ID_BASELINE
+
+        elif BL_MODE == 2:
+            # Select interferograms satisfying baseline constraints from previous selectionss
+            print('Enforcing baseline constraints on selections from SEQ, ORD, and/or LONG')
+            for key in subset_IDs.keys():
+                subset_IDs[key] *= ID_BASELINE
 
 
     # ---------- PREPARE OUTPUT LISTS ----------
     # Create initial and repeat matricies of dimension N x N
     initials = np.array(list(baseline_table['date'])).repeat(N).reshape(N, N)
-    repeats = np.array(list(baseline_table['date'])).repeat(N).reshape(N, N).T
+    repeats  = np.array(list(baseline_table['date'])).repeat(N).reshape(N, N).T
 
     # Loop through subset dictionary to make individual subset interferograms] lists
     subset_inputs = {}
@@ -354,7 +395,7 @@ def select_pairs(baseline_table, prm_file):
 
     for key in subset_IDs.keys():
         inputs = []
-        dates = []
+        dates  = []
 
         for i in range(len(subset_IDs[key])):
             for j in range(len(subset_IDs[key][0])):
@@ -368,7 +409,7 @@ def select_pairs(baseline_table, prm_file):
 
     # Aggregate to master lists
     intf_inputs = []
-    intf_dates = []
+    intf_dates  = []
 
     for key in subset_inputs:
         intf_inputs.extend(subset_inputs[key])
@@ -378,13 +419,14 @@ def select_pairs(baseline_table, prm_file):
 
     # Get number of interferogams to make
     n = len(intf_inputs)
-    print('Number of interferograms: {}'.format(n))
+    print()
+    print('Total number of interferograms = {}'.format(n))
 
 
     return intf_inputs, intf_dates, subset_inputs, subset_dates, supermaster
 
 
-def baseline_plot(intf_dates, baseline_table, supermaster={}):
+def baseline_plot(intf_dates, baseline_table, supermaster={}, window=[]):
 
     """
     Make baseline netwwork plot for given set of interferograms
@@ -409,7 +451,7 @@ def baseline_plot(intf_dates, baseline_table, supermaster={}):
         Bp_pair = [baseline_table[baseline_table['date'] == date]['Bp'].values for date in date_pair]
 
         # Plot
-        print(date_pair, Bp_pair)
+        # print(date_pair, Bp_pair)
 
         ax.plot(date_pair, Bp_pair, c='k', linewidth=1, zorder=0)
 
@@ -429,18 +471,58 @@ def baseline_plot(intf_dates, baseline_table, supermaster={}):
 
         ax.scatter(baseline_table['date'][i], baseline_table['Bp'][i], marker='o', c=c, s=20)
 
-        # Offset by 10 days/5 m for asthetics
+        # Offset by 10 days/5 m for readability
         ax.text(baseline_table['date'][i] + dt.timedelta(days=10), 
                 baseline_table['Bp'][i] + 5, 
                 baseline_table['date'][i].strftime('%Y/%m/%d'), 
-                size=8, color=c_text)
+                size=8, color=c_text, 
+                # bbox={'facecolor': 'w', 'pad': 0, 'edgecolor': 'w', 'alpha': 0.7}
+                )
     
+    # If specified, plot long-pair window
+
+    # # Get years
+    # years = ax.get_yticks()
+    # ax.fill()
+
     ax.set_ylabel('Perpendicular baseline (m)')
     ax.set_xlabel('Date')
+    ax.tick_params(direction='in')
     plt.savefig('baseline_plot.eps')
     plt.show()
 
 
+def default_prm_file():
+    '''
+# ---------- Dates ----------
+DATE_START  = 1900/01/01  # Lower bound on scene dates to use (YYYY/MM/DD)
+DATE_END    = 2100/01/01  # Upper bound on scene dates to use (YYYY/MM/DD)
+DATE_MASTER = None        # Date of master scene for image alignment (if not specified, scene closest to perpendicular baseline mean is used)
+
+# ---------- Pair types ----------
+# For all options, set to 0 to not include in selection process
+
+SEQ        = 1    # Generate sequential pairs, starting from initial scene
+ORD        = 2    # Generate nth-order pairs (e.g. ORD = 1 is equivalent to SEQ, ORD = 2 skips one scene, etc.)
+LONG       = 1    # Generate chain of 6-18 month pairs that connect the first and last dates
+LONG_START = 150  # Earliest day-of-year to use in possible pairs (i.e. 1 for Jan. 1, 152 for June 1, etc)
+LONG_END   = 270  # Latest dat-of-year to use in possible pairs
+
+
+# ---------- Baseline constraints ---------- 
+# Temporal and perpendicular baseline limits may be used in the following ways:
+# 1 - Make all interferograms which satisfy give constraints regardless of specification from SEQ, N, or LONG
+# 2 - Use baseline constraints as a filter on previously specified pairs from SEQ, N, or LONG
+
+BL_MODE = 0    # Choose baseline constraint mode (1, 2, or 0 to not use) 
+BP_MAX  = 100  # Maximum perpendicular baseline (m)
+DT_MIN  = 0    # Minimum interferogram epoch length (days)
+DT_MAX  = 600  # Maximums interferogram epoch length (days) 
+    '''
+    return
+
+
+
+
 if __name__ == '__main__':
     main()
-
