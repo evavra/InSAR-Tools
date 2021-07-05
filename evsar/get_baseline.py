@@ -158,8 +158,10 @@ def load_baseline_table(file_name):
                 if tmp_str.isdigit():
                     try:
                         dates.append(dt.datetime.strptime(tmp_str, '%Y%m%d'))
+                        break
                     except ValueError:
                         continue
+            print(dates)
 
         # Handle ALOS-2 IDs
         elif 'ALOS2' in scene:
@@ -426,7 +428,7 @@ def select_pairs(baseline_table, prm_file):
     return intf_inputs, intf_dates, subset_inputs, subset_dates, supermaster
 
 
-def baseline_plot(intf_dates, baseline_table, supermaster={}, window=[]):
+def baseline_plot(intf_dates, baseline_table, supermaster={}):
 
     """
     Make baseline netwwork plot for given set of interferograms
@@ -472,19 +474,13 @@ def baseline_plot(intf_dates, baseline_table, supermaster={}, window=[]):
         ax.scatter(baseline_table['date'][i], baseline_table['Bp'][i], marker='o', c=c, s=20)
 
         # Offset by 10 days/5 m for readability
-        ax.text(baseline_table['date'][i] + dt.timedelta(days=10), 
-                baseline_table['Bp'][i] + 5, 
+        ax.text(baseline_table['date'][i] + 0.005*(baseline_table['date'].iloc[-1] - baseline_table['date'].iloc[0]), 
+                baseline_table['Bp'][i]   + 0.01*(baseline_table['Bp'].iloc[-1] - baseline_table['Bp'].iloc[0]), 
                 baseline_table['date'][i].strftime('%Y/%m/%d'), 
                 size=8, color=c_text, 
                 # bbox={'facecolor': 'w', 'pad': 0, 'edgecolor': 'w', 'alpha': 0.7}
                 )
     
-    # If specified, plot long-pair window
-
-    # # Get years
-    # years = ax.get_yticks()
-    # ax.fill()
-
     ax.set_ylabel('Perpendicular baseline (m)')
     ax.set_xlabel('Date')
     ax.tick_params(direction='in')
