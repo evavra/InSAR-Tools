@@ -381,7 +381,10 @@ def select_pairs(baseline_table, prm_file):
                     complete = True
 
             # Find index of scene within window that minimizes the perpendicular baseline with respect to the initial scene
-            j = (abs(baseline_table['Bp'][i] - long_scenes0['Bp'])).idxmin()
+            if type(long_scenes0['Bp']) is np.float64:
+                j = long_scenes0.name
+            else:
+                j = (abs(baseline_table['Bp'][i] - long_scenes0['Bp'])).idxmin()
 
             # Turn element on in subset array
             ID_LONG[i, j] = 1
