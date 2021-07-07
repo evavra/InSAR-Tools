@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 def main():
     """
     -------------------------------------- Case A -------------------------------------- 
-    Generate parameter file
+    Generate parameter file using specified baseline constraints.
 
     Usage:
         python get_baseline.py DT_MIN DT_MAX BP_MAX prm_file
@@ -25,8 +25,7 @@ def main():
         file_name.PRM - interferogram selection parameter file (saved to disk)
 
     -------------------------------------- Case B -------------------------------------- 
-    Generate list of interferograms to process and baseline 
-    plot given baseline table and processing parameters
+    Generate lists of interferograms to process and make interferogram baseline plot.
     
     Usage:
         python get_baseline.py prm_file baseline_file
@@ -36,7 +35,7 @@ def main():
         baseline_file - GMTSAR baseline table file
     
     OUTPUT:
-        baseline_plot_{prm_file}.eps - plot of interferograms pairs selected (saved to disk)
+        baseline_plot_{prm_file}.eps - plot of interferograms pairs (saved to disk)
 
         dates.ALL  - list of pairs in YYYYMMDD_YYYYMMDD format
         dates.SEQ  - dates.ALL subset for sequential pairs
@@ -48,7 +47,8 @@ def main():
         intf.SEQ  - intf.all subset for sequential pairs
         intf.SKIP - intf.all subset for skip pairs
         intf.LONG - intf.all subset for long pairs
-        intf.BL   - intf.all subset for baseline-constrained pairs 
+        intf.BL   - intf.all subset for baseline-constrained pairs
+    ------------------------------------------------------------------------------------ 
     """
 
     # For Case A, write parameter file
