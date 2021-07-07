@@ -9,65 +9,69 @@ import matplotlib.pyplot as plt
 
 def main():
     """
-    Generate list of interferograms to process and baseline plot given baseline table and processing parameters
-    
-    ------------------------------------------------------------
-    Case A - Generate parameter file
+    -------------------------------------- Case A -------------------------------------- 
+    Generate parameter file
 
     Usage:
-        get_baseline.py DT_MIN DT_MAX BP_MAX filename
+        python get_baseline.py DT_MIN DT_MAX BP_MAX prm_file
 
     Input:
-        DT_MIN   - minimum interferogram epoch length (days)
-        DT_MAX   - maximum interferogram epoch length (days)
-        BP_MAX   - maximum perpendicular baseline (m)
-        filename - name of parameter file to crete (filename.PRM)
+        DT_MIN    - minimum interferogram epoch length (days)
+        DT_MAX    - maximum interferogram epoch length (days)
+        BP_MAX    - maximum perpendicular baseline (m)
+        file_name - name of parameter file to crete (file_name.PRM)
 
     Output:
-        Saves filename.PRM to disk
+        file_name.PRM - interferogram selection parameter file (saved to disk)
 
-    ------------------------------------------------------------
-    Usage B -  Make interferogram selections
+    -------------------------------------- Case B -------------------------------------- 
+    Generate list of interferograms to process and baseline 
+    plot given baseline table and processing parameters
+    
+    Usage:
+        python get_baseline.py prm_file baseline_file
 
-        get_baseline.py prm_file baseline_file
-
-        prm_file - parameter (PRM) file containing date and baseline values for interferogram selection
+    Input:
+        prm_file      - parameter file for interferogram selection
         baseline_file - GMTSAR baseline table file
     
     OUTPUT:
-    short.dat - list of interferograms in YYYYMMDD_YYYYMMDD format
-    intf.in   - list of interferogram pairs in SLC naming convention (e.g. S1A20150126_ALL_F1:S1A20150607_ALL_F1), for input into GMTSAR interferogram scripts 
-        Note: subsets of these lists will be generated which correspond to the selection parameters provided in the prm_file
-        Ex:
-        intf.in.SEQ for SEQ = True
-        intf.in.ORD_2 for ORD = 2
-        intf.in.LONG for LONG_INTFS  = True
+        baseline_plot_{prm_file}.eps - plot of interferograms pairs selected (saved to disk)
 
-    baseline_plot.eps - plot of interferograms selected
+        dates.ALL  - list of pairs in YYYYMMDD_YYYYMMDD format
+        dates.SEQ  - dates.ALL subset for sequential pairs
+        dates.SKIP - dates.ALL subset for skip pairs
+        dates.LONG - dates.ALL subset for long pairs
+        dates.BL   - dates.ALL subset for baseline-constrained pairs
+
+        intf.ALL  - list of  pairs in GMTSAR SLC naming convention
+        intf.SEQ  - intf.all subset for sequential pairs
+        intf.SKIP - intf.all subset for skip pairs
+        intf.LONG - intf.all subset for long pairs
+        intf.BL   - intf.all subset for baseline-constrained pairs 
     """
 
     # For Case A, write parameter file
     if len(sys.argv) == 5:
 
         # Get parameters
-        DT_MIN   = sys.argv[1]
-        DT_MAX   = sys.argv[2]
-        BL_MAX   = sys.argv[3]
-        filename = sys.argv[4]
-
+        DT_MIN    = sys.argv[1]
+        DT_MAX    = sys.argv[2]
+        BP_MAX    = sys.argv[3]
+        file_name = sys.argv[4]
 
         # Get file text
-        prm_text = get_prm_file(DT_MIN, DT_MAX, BL_MAX)
+        prm_text = get_prm_file(DT_MIN, DT_MAX, BP_MAX)
 
         # Save to disk
-        with open(f'{filename}.PRM', 'w') as file:
+        with open(f'{file_name}.PRM', 'w') as file:
             file.write(prm_text)
-        print(f'{filename}.PRM saved')
+        print(f'{file_name}.PRM saved')
         sys.exit()
-
 
     # Case B, select interferograms 
     elif len(sys.argv) == 3:
+        
         # Get arguments
         prm_file      = sys.argv[1];
         baseline_file = sys.argv[2];
@@ -79,20 +83,20 @@ def main():
         intf_inputs, intf_dates, subset_inputs, subset_dates, supermaster = select_pairs(baseline_table, prm_file)
 
         # Write intferferogram list to use with GMTSAR scripts
-        write_intf_list('intf.in', intf_inputs)
+        write_intf_list('intf.ALL', intf_inputs)
 
         # Write dates to list of interferogram directories to be generate=d
-        write_intf_list('short.dat', [dates[0].strftime('%Y%m%d') + '_' + dates[1].strftime('%Y%m%d') for dates in intf_dates])
+        write_intf_list('dates.ALL', [dates[0].strftime('%Y%m%d') + '_' + dates[1].strftime('%Y%m%d') for dates in intf_dates])
 
         # Also write interferogram subset lists
         for key in subset_inputs:
-            write_intf_list('intf.in.' + key, subset_inputs[key])
-            write_intf_list('short.dat.' + key, [dates[0].strftime('%Y%m%d') + '_' + dates[1].strftime('%Y%m%d') for dates in subset_dates[key]])
+            write_intf_list('intf.' + key, subset_inputs[key])
+            write_intf_list('dates.' + key, [dates[0].strftime('%Y%m%d') + '_' + dates[1].strftime('%Y%m%d') for dates in subset_dates[key]])
 
         # Make baseline plot 
-        baseline_plot(subset_dates, baseline_table, supermaster=supermaster)
+        baseline_plot(prm_file, subset_dates, baseline_table, supermaster=supermaster)
 
-    # Return docstring if arguments unspecified
+    # Return docstring otherwise
     else:
         print(main.__doc__)
         sys.exit()
@@ -231,7 +235,7 @@ def select_pairs(baseline_table, prm_file):
 
     # Check pair selection parameters
     SEQ  = load_PRM(prm_file, 'SEQ')
-    ORD  = load_PRM(prm_file, 'ORD')
+    SKIP = load_PRM(prm_file, 'SKIP')
     LONG = load_PRM(prm_file, 'LONG')
 
     # Load baseline parameters
@@ -295,18 +299,31 @@ def select_pairs(baseline_table, prm_file):
 
         subset_IDs['SEQ'] = ID_SEQ
 
-    # If ORD is specified, select all n-order pairs
-    if ORD > 0:
-        print('Making all order-{} interferograms'.format(int(ORD)))
-        ID_ORD = np.zeros((N, N)) 
+    # If SKIP is specified, make all 2nd-order pairs (skipping one scene)
+    if SKIP > 0:
+        print('Making all skip interferograms'.format(int(SKIP)))
+        ID_SKIP = np.zeros((N, N)) 
 
         for i in range(N):
             for j in range(N):
-                # if np.mod(i, ORD + 1) == 0:    
-                if abs(j - i) == ORD:
-                    ID_ORD[i, j] = 1
+                # if np.mod(i, SKIP + 1) == 0:    
+                if abs(j - i) == 2:
+                    ID_SKIP[i, j] = 1
 
-        subset_IDs['ORD_{}'.format(int(ORD))] = ID_ORD
+        subset_IDs['SKIP'] = ID_SKIP
+
+    # # If SKIP is specified, select all n-order pairs
+    # if SKIP > 0:
+    #     print('Making all order-{} interferograms'.format(int(SKIP)))
+    #     ID_SKIP = np.zeros((N, N)) 
+
+    #     for i in range(N):
+    #         for j in range(N):
+    #             # if np.mod(i, SKIP + 1) == 0:    
+    #             if abs(j - i) == SKIP:
+    #                 ID_SKIP[i, j] = 1
+
+    #     subset_IDs['SKIP_{}'.format(int(SKIP))] = ID_SKIP
 
     # If LONG is specified, identify scenes which fit date range provided by LONG_START and LONG_END
     if bool(LONG) == True:
@@ -398,12 +415,12 @@ def select_pairs(baseline_table, prm_file):
 
         if BL_MODE == 1:
             # Include all interferograms satisfying baseline constraints
-            print('Including all intereferograms satisfying baseline constraints')
+            print('Making all intereferograms satisfying baseline constraints')
             subset_IDs['BL'] = ID_BASELINE
 
         elif BL_MODE == 2:
             # Select interferograms satisfying baseline constraints from previous selectionss
-            print('Enforcing baseline constraints on selections from SEQ, ORD, and/or LONG')
+            print('Enforcing baseline constraints on previous selections')
             for key in subset_IDs.keys():
                 subset_IDs[key] *= ID_BASELINE
 
@@ -450,7 +467,7 @@ def select_pairs(baseline_table, prm_file):
     return intf_inputs, intf_dates, subset_inputs, subset_dates, supermaster
 
 
-def baseline_plot(subset_dates, baseline_table, supermaster={}):
+def baseline_plot(prm_file, subset_dates, baseline_table, supermaster={}):
 
     """
     Make baseline netwwork plot for given set of interferograms
@@ -477,11 +494,12 @@ def baseline_plot(subset_dates, baseline_table, supermaster={}):
             # Get corresponding baselines
             Bp_pair = [baseline_table[baseline_table['date'] == date]['Bp'].values for date in date_pair]
 
-            if i == j:
+            if j == 0:
                 label = key
             else:
                 label = None
-            ax.plot(date_pair, Bp_pair, c=colors[i], linewidth=1, zorder=0, label=label)
+
+            ax.plot(date_pair, Bp_pair, c=colors[i], linewidth=2, zorder=0, label=label)
 
 
     # Plot nodes
@@ -493,7 +511,8 @@ def baseline_plot(subset_dates, baseline_table, supermaster={}):
             c_text = 'r'
             s = 30
         else:
-            c = 'C0'
+            # c = 'C0'
+            c = 'k'
             c_text = 'k'
             s = 20
 
@@ -511,34 +530,34 @@ def baseline_plot(subset_dates, baseline_table, supermaster={}):
     ax.set_ylabel('Perpendicular baseline (m)')
     ax.set_xlabel('Date')
     ax.tick_params(direction='in')
-    plt.savefig('baseline_plot.eps')
+    plt.savefig(f'baseline_plot_{prm_file[:-4]}.eps')
     plt.show()
 
 
-def get_prm_file(BP_MAX, DT_MIN, DT_MAX):
+def get_prm_file(DT_MIN, DT_MAX, BP_MAX):
 
     text  = '# ---------- Dates ---------- \n'
     text += 'DATE_START  = 1900/01/01  # Lower bound on scene dates to use (YYYY/MM/DD) \n'
     text += 'DATE_END    = 2100/01/01  # Upper bound on scene dates to use (YYYY/MM/DD) \n'
-    text += 'DATE_MASTER = None        # Date of master scene for image alignment (if not specified, scene closest to perpendicular baseline mean is used) \n'
-
+    text += 'DATE_MASTER = None        # Date of master scene (default: use scene closest to perpendicular baseline mean) \n'
+    text += '\n'
     text += '# ---------- Pair types ---------- \n'
     text += '# For all options, set to 0 to not include in selection process \n'
     text += '\n'
     text += 'SEQ        = 1    # Generate sequential pairs, starting from initial scene \n'
-    text += 'ORD        = 2    # Generate nth-order pairs (e.g. ORD = 1 is equivalent to SEQ, ORD = 2 skips one scene, etc.) \n'
-    text += 'LONG       = 1    # Generate chain of 6-18 month pairs that connect the first and last dates \n'
-    text += 'LONG_START = 150  # Earliest day-of-year to use in possible pairs (i.e. 1 for Jan. 1, 152 for June 1, etc) \n'
-    text += 'LONG_END   = 270  # Latest dat-of-year to use in possible pairs \n'
+    text += 'SKIP       = 1    # Generate 2nd-order pairs that skip one scene) \n'
+    text += 'LONG       = 1    # Generate chain of 6-18 month pairs that connect the first and last dates \n' 
+    text += 'LONG_START = 150  # Earliest Julian day to use in possible long pairs (1-366) \n'
+    text += 'LONG_END   = 270  # Latest Julian day to use in possible long pairs (1-366) \n'
     text += '\n'
     text += '# ---------- Baseline constraints ---------- \n'
     text += '# Temporal and perpendicular baseline limits may be used in the following ways: \n'
-    text += '# 1 - Make all interferograms which satisfy give constraints regardless of specification from SEQ, N, or LONG \n'
-    text += '# 2 - Use baseline constraints as a filter on previously specified pairs from SEQ, N, or LONG \n'
+    text += '# 1 - Make all interferograms which satisfy give constraints regardless of specification from SEQ, SKIP, or LONG \n'
+    text += '# 2 - Use baseline constraints as a filter on previously specified pairs \n'
     text += '\n'
-    text += 'BL_MODE = 1    # Choose baseline constraint mode (1, 2, or 0 to not use) \n'
+    text += 'BL_MODE = 1   # Choose baseline constraint mode (1, 2, or 0 to not use) \n'
     text += 'BP_MAX  = {}  # Maximum perpendicular baseline (m) \n'.format(BP_MAX)
-    text += 'DT_MIN  = {}    # Minimum interferogram epoch length (days) \n'.format(DT_MIN)
+    text += 'DT_MIN  = {}  # Minimum interferogram epoch length (days) \n'.format(DT_MIN)
     text += 'DT_MAX  = {}  # Maximums interferogram epoch length (days) \n'.format(DT_MAX)
 
     return text
