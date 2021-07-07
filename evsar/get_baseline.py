@@ -53,18 +53,14 @@ def main():
     # Read in baseline table
     baseline_table = load_baseline_table(baseline_file) 
 
-
     # Get pairs
     intf_inputs, intf_dates, subset_inputs, subset_dates, supermaster = select_pairs(baseline_table, prm_file)
-    
 
     # Write intferferogram list to use with GMTSAR scripts
     write_intf_list('intf.in', intf_inputs)
 
-
     # Write dates to list of interferogram directories to be generate=d
     write_intf_list('short.dat', [dates[0].strftime('%Y%m%d') + '_' + dates[1].strftime('%Y%m%d') for dates in intf_dates])
-
 
     # Also write interferogram subset lists
     for key in subset_inputs:
@@ -152,7 +148,7 @@ def load_baseline_table(file_name):
     for scene in baseline_table['scene_id']:
 
         # Handle Sentinel-1 IDs
-        if 'S1A' in scene or 'S1B' in scene or 's1a' in scene or 's1b' in scene:
+        if 'S1' in scene or 's1' in scene:
             for i in range(len(scene) - 8):
                 tmp_str = scene[i:i + 8]
                 if tmp_str.isdigit():
@@ -161,7 +157,7 @@ def load_baseline_table(file_name):
                         break
                     except ValueError:
                         continue
-            print(dates)
+            # print(dates)
 
         # Handle ALOS-2 IDs
         elif 'ALOS2' in scene:
