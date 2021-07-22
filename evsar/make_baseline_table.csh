@@ -121,7 +121,7 @@ set shift_topo = `grep shift_topo $config | awk '{print $3}'`
 # end
 
 cd raw
-ls IMG*$n1*.PRM > prm.list
+ls -1 IMG*$n1*.PRM > prm.list
 set master = `cat prm.list|awk '{ if (NR==1) print $1}'|awk -F".N1" '{print $1}'`
 baseline_table.csh $master $master > baseline_table.dat
 
