@@ -121,8 +121,8 @@ set shift_topo = `grep shift_topo $config | awk '{print $3}'`
 # end
 
 cd raw
-ls -1 IMG*$n1*.PRM > prm.list
-set master = `cat prm.list|awk '{ if (NR==1) print $1}'|awk -F".N1" '{print $1}'`
+ls -1 IMG*F$n1*.PRM > prm.list
+set master = `cat prm.list | awk '{ if (NR==1) print $1}'|awk -F".N1" '{print $1}'`
 baseline_table.csh $master $master > baseline_table.dat
 
 
@@ -141,8 +141,9 @@ foreach slave (`cat prm.list |awk '{if (NR>1) print $1}'|awk -F".N1" '{print $1}
   echo $tsar >> tsar.tmp
 end
 
-cat prm.list | cut -c 5- | awk -F"-F" '{print $1}'  > img_id.list
-paste date_sar.txt img_id.list baseline_table.dat |sort -u -k1,1 > baseline_table_new.dat
+# cat prm.list | cut -c 5- | awk -F"-F" '{print $1}'  > img_id.list
+
+# paste date_sar.txt img_id.list baseline_table.dat | sort -u -k1,1 > baseline_table_new.dat
 
 rm -f tsar.tmp
 rm -f date_sar.txt
