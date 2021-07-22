@@ -38,8 +38,8 @@ def main():
     scene_dates = [date.strftime('%Y%m%d') for date in baseline_table['date']]
 
     # Remove mean from scene baseline  and sort in descending order
-    baseline_table['Bp'] -= baseline_table['Bp'].mean()
-    baseline_table['Bp_abs'] = baseline_table['Bp'].abs()
+    baseline_table['Bp']     -= baseline_table['Bp'].mean()
+    baseline_table['Bp_abs']  = baseline_table['Bp'].abs()
     baseline_table = baseline_table.sort_values(by='Bp_abs', ascending=False)
     print(baseline_table)
 
@@ -213,7 +213,6 @@ def write_intf_list(file_name, intf_list):
             file.write(intf + '\n')
 
 
-
 def baseline_plot(prm_file, subset_dates, baseline_table, supermaster={}):
 
     """
@@ -236,24 +235,26 @@ def baseline_plot(prm_file, subset_dates, baseline_table, supermaster={}):
     # Plot pairs
     colors = ['k', 'steelblue', 'tomato', 'gold']
 
+
     for i, key in enumerate(subset_dates.keys()):
         for j, date_pair in enumerate(subset_dates[key]):
             # Get corresponding baselines
-            Bp_pair = [baseline_table[baseline_table['date'] == date]['Bp'].values for date in date_pair]
+            Bp_pair = [baseline_table[baseline_table['date'] == date]['Bp'].values for date in date_pair.split('_')]
 
             if j == 0:
                 label = key
             else:
                 label = None
 
-            ax.plot(date_pair, Bp_pair, c=colors[i], linewidth=2, zorder=0, label=label)
+            ax.plot([dt.datetime.strptime(date, '%Y%m%d') for date in date_pair.split('_')], Bp_pair, c=colors[i], linewidth=2, zorder=0, label=label)
 
 
     # Plot nodes
     for i in range(len(baseline_table)):
 
         # Change settings if master
-        if baseline_table['date'][i] == supermaster['date']:
+        # if baseline_table['date'][i] == supermaster['date']:
+        if baseline_table['date'][i] == 0:
             c = 'r'
             c_text = 'r'
             s = 30
@@ -279,6 +280,7 @@ def baseline_plot(prm_file, subset_dates, baseline_table, supermaster={}):
     ax.tick_params(direction='in')
     plt.savefig(f'baseline_plot_{prm_file[:-4]}.eps')
     plt.show()
+
 
 if __name__ == '__main__':
     main()
