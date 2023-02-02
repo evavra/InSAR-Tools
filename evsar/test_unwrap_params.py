@@ -1,4 +1,3 @@
-#!/home/class239/anaconda3/bin/python3
 import os
 import sys
 
@@ -30,7 +29,7 @@ def main():
 
     # Open parameter file
     # commands = []
-    
+
     with open(param_file, 'r') as f:
         for i, line in enumerate(f):
             
