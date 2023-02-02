@@ -58,13 +58,14 @@ def main():
     with Pool(len(commands)) as p:
         print(p.map(unwrap, commands))
 
-    def unwrap(cmd):
-        os.system(cmd)
-        return
+
 
     return
 
-
+def unwrap(cmd):
+    os.system(cmd)
+    return
+        
 if __name__ == '__main__':
     main()
 
