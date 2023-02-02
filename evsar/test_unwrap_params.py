@@ -50,6 +50,10 @@ def main():
                 # g.write(str{i})
                 g.write(' '.join(args) + '\n')
 
+            # Link grids
+            os.system('ln -s ../*grd .')
+            
+            # Store unwrapping command
             cmd = f'cd {test_dir}; snaphu_interp.csh ' + ' '.join(args) + ' >& log.txt; cd ..;'
             commands.append(cmd)
 
@@ -65,7 +69,7 @@ def main():
 def unwrap(cmd):
     os.system(cmd)
     return
-        
+
 if __name__ == '__main__':
     main()
 
