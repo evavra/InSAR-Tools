@@ -28,7 +28,7 @@ def main():
     cwd = os.getcwd()
 
     # Open parameter file
-    # commands = []
+    commands = []
 
     with open(param_file, 'r') as f:
         for i, line in enumerate(f):
@@ -49,11 +49,18 @@ def main():
                 # g.write(str{i})
                 g.write(' '.join(args) + '\n')
 
-            cmd = 'snaphu_interp.csh ' + ' '.join(args) + ' >& log.tx & bg'
-            print(i, cmd)
-            os.system(cmd)
+            cmd = f'cd {test_dir}; snaphu_interp.csh ' + ' '.join(args) + ' >& log.txt; cd ..;'
+            commands.append(cmd)
 
             os.chdir(cwd)
+
+    with Pool(len(commands)) as p:
+        print(p.map(unwrap, commands))
+
+    def unwrap(cmd):
+        os.system(cmd)
+        return
+
     return
 
 
