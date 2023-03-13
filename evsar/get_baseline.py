@@ -1,9 +1,11 @@
-#!/home/class239/anaconda3/bin/python3
+# ##!/home/class239/anaconda3/bin/python3
 import sys
 import numpy as np
 import pandas as pd
 import datetime as dt
 import matplotlib.pyplot as plt
+from pandas.plotting import register_matplotlib_converters
+register_matplotlib_converters()
 
 # ========== DRIVING METHOD ==========
 
@@ -13,13 +15,14 @@ def main():
     Generate parameter file using specified baseline constraints.
 
     Usage:
-        python get_baseline.py DT_MIN DT_MAX BP_MAX prm_file
+        python get_baseline.py DT_MIN DT_MAX BP_MAX file_name [REF]
 
     Input:
         DT_MIN    - minimum interferogram epoch length (days)
         DT_MAX    - maximum interferogram epoch length (days)
         BP_MAX    - maximum perpendicular baseline (m)
         file_name - name of parameter file to crete (file_name.PRM)
+        REF       - optional, reference date (YYYYMMDD)
 
     Output:
         file_name.PRM - interferogram selection parameter file (saved to disk)
@@ -28,23 +31,27 @@ def main():
     Generate lists of interferograms to process and make interferogram baseline plot.
     
     Usage:
-        python get_baseline.py prm_file baseline_file
+        python get_baseline.py prm_file baseline_file mode
 
     Input:
         prm_file      - parameter file for interferogram selection
         baseline_file - GMTSAR baseline table file
+        mode          - baseline mode (see batch.config)
+
     
     OUTPUT:
         baseline_plot_{prm_file}.eps - plot of interferograms pairs (saved to disk)
 
         dates.ALL  - list of pairs in YYYYMMDD_YYYYMMDD format
         dates.SEQ  - dates.ALL subset for sequential pairs
+        dates.ORIG - dates.ALL subset for pairs wrt 1st date
         dates.SKIP - dates.ALL subset for skip pairs
         dates.LONG - dates.ALL subset for long pairs
         dates.BL   - dates.ALL subset for baseline-constrained pairs
 
         intf.ALL  - list of  pairs in GMTSAR SLC naming convention
         intf.SEQ  - intf.all subset for sequential pairs
+        intf.ORIG - intf.all subset for pairs wrt 1st date
         intf.SKIP - intf.all subset for skip pairs
         intf.LONG - intf.all subset for long pairs
         intf.BL   - intf.all subset for baseline-constrained pairs
@@ -52,29 +59,36 @@ def main():
     """
 
     # For Case A, write parameter file
-    if len(sys.argv) == 5:
+    if len(sys.argv) > 4:
 
         # Get parameters
         DT_MIN    = sys.argv[1]
         DT_MAX    = sys.argv[2]
         BP_MAX    = sys.argv[3]
         file_name = sys.argv[4]
+        if len(sys.argv) > 5: 
+           REF = sys.argv[5]
+        else:
+           REF = 'None'
 
+        #print(REF)
         # Get file text
-        prm_text = get_prm_file(DT_MIN, DT_MAX, BP_MAX)
+        prm_text = get_prm_file(DT_MIN, DT_MAX, BP_MAX, REF)
 
         # Save to disk
-        with open(f'{file_name}.PRM', 'w') as file:
+        #with open(f'{file_name}.PRM', 'w') as file:
+        with open('base.PRM', 'w') as file:
             file.write(prm_text)
-        print(f'{file_name}.PRM saved')
+        #print(f'{file_name}.PRM saved')
         sys.exit()
 
     # Case B, select interferograms 
-    elif len(sys.argv) == 3:
+    elif len(sys.argv) == 4:
         
         # Get arguments
         prm_file      = sys.argv[1];
         baseline_file = sys.argv[2];
+        baseline_mode = sys.argv[3];
 
         # Read in baseline table
         baseline_table = load_baseline_table(baseline_file) 
@@ -94,7 +108,7 @@ def main():
             write_intf_list('dates.' + key, [dates[0].strftime('%Y%m%d') + '_' + dates[1].strftime('%Y%m%d') for dates in subset_dates[key]])
 
         # Make baseline plot 
-        baseline_plot(prm_file, subset_dates, baseline_table, supermaster=supermaster)
+        baseline_plot(prm_file, subset_dates, baseline_table, baseline_mode, supermaster=supermaster)
 
     # Return docstring otherwise
     else:
@@ -237,6 +251,7 @@ def select_pairs(baseline_table, prm_file):
     SEQ  = load_PRM(prm_file, 'SEQ')
     SKIP = load_PRM(prm_file, 'SKIP')
     LONG = load_PRM(prm_file, 'LONG')
+    ORIG = load_PRM(prm_file, 'ORIG')
 
     # Load baseline parameters
     defaults = [0, 0, 0, 0] # Default values
@@ -255,20 +270,20 @@ def select_pairs(baseline_table, prm_file):
     Bp_mean = baseline_table['Bp'].mean()
 
     # Get supermaster scene
-    DATE_MASTER = load_PRM(prm_file, 'DATE_MASTER');
+    DATE_REF = load_PRM(prm_file, 'DATE_REF');
 
-    if DATE_MASTER not in baseline_table['date']:
+    if DATE_REF not in baseline_table['date']:
         # Find scene with baseline closest to mean if no date is specified in PRM file
         supermaster_tmp = baseline_table[abs(baseline_table['Bp'] - Bp_mean) == min(abs(baseline_table['Bp'] - Bp_mean)) ]
         print()
-        print('DATE_MASTER = {} is not found in dataset'.format(DATE_MASTER))
+        print('DATE_REF = {} is not found in dataset'.format(DATE_REF))
         print('Using scene with baseline closest to stack mean ({} m):'.format(np.round(Bp_mean, 2)))
         print('Master date = {} '.format(pd.to_datetime(supermaster_tmp['date'].values[0]).strftime('%Y/%m/%d')))
         print('Baseline    = {} m'.format(np.round(supermaster_tmp['Bp'].values[0], 2)))
     
     else:
-        print('DATE_MASTER = {}'.format(DATE_MASTER))
-        supermaster_tmp = baseline_table[baseline_table['date'] == DATE_MASTER]
+        print('DATE_REF = {}'.format(DATE_REF))
+        supermaster_tmp = baseline_table[baseline_table['date'] == DATE_REF]
 
     # Convert to dictionary
     supermaster = {}
@@ -298,6 +313,20 @@ def select_pairs(baseline_table, prm_file):
                     ID_SEQ[i, j] = 1
 
         subset_IDs['SEQ'] = ID_SEQ
+
+    # If ORIG is specified, make all interferograms connecting to the 1st data take
+    if bool(ORIG) == True:
+        print()
+        print('Making interferograms wrt 1st date')
+
+        ID_ORIG = np.zeros((N, N))
+
+        for i in range(N):
+            for j in range(N):
+                if i==0:
+                    ID_ORIG[i, j] = 1
+
+        subset_IDs['ORIG'] = ID_ORIG
 
     # If SKIP is specified, make all 2nd-order pairs (skipping one scene)
     if SKIP > 0:
@@ -336,7 +365,7 @@ def select_pairs(baseline_table, prm_file):
         LONG_END   = load_PRM(prm_file,'LONG_END');
 
         # Or set defaults
-        for param, value, default in zip(['LONG_START'], [LONG_START, LONG_END], [150, 270]):
+        for param, value, default in zip(['LONG_START'], [LONG_START, LONG_END], [130, 280]):
             if value == None:
                 print('{} not specified, default = {}'.format(param, default))
                 param = default
@@ -366,19 +395,26 @@ def select_pairs(baseline_table, prm_file):
             while len(long_scenes0) == 0:
                 start0       = dt.datetime.strptime(str(int(year*1000 + LONG_START)), '%Y%j') # Convert dates from ints to str so datetime can use them
                 end0         = dt.datetime.strptime(str(int(year*1000 + LONG_END)), '%Y%j')
-                long_scenes0 = long_scenes[(long_scenes['date'] >= start0) & (long_scenes['date'] <= end0)]
+
+                long_scenes_try = long_scenes[(long_scenes['date'] >= start0) & (long_scenes['date'] <= end0)]
+                if len(long_scenes_try) > 2:
+                  long_scenes0 = long_scenes_try
                 year += 1
 
                 # Once the year of the final scene is reached, if the scene is in or before the window, set it to be the reference image scene
-                if (year == baseline_table['date'].iloc[-1].year) and (baseline_table['date'][i].timetuple().tm_yday <= LONG_END):
-                    long_scenes0 = baseline_table[baseline_table['date'] == baseline_table['date'].iloc[-1]] # This is silly indexing, but it must be to work.
-                    complete = True
-                    # Otherwise, continue for one more pair
+                #if (year == baseline_table['date'].iloc[-1].year) and (baseline_table['date'][i].timetuple().tm_yday <= LONG_END):
+                #    long_scenes0 = baseline_table[baseline_table['date'] == baseline_table['date'].iloc[-1]] # This is silly indexing, but it must be to work.
+
+                #    #print(baseline_table['date'].iloc[-1])
+                #    complete = True
+                #    # Otherwise, continue for one more pair
+                #print(long_scenes0)
 
                 # If the later case is not triggered then the this one will be.
                 if year > baseline_table['date'].iloc[-1].year: 
                     long_scenes0 = baseline_table.iloc[-1, :]
                     complete = True
+            #print(long_scenes0)
 
             # Find index of scene within window that minimizes the perpendicular baseline with respect to the initial scene
             if type(long_scenes0['Bp']) is np.float64:
@@ -386,6 +422,7 @@ def select_pairs(baseline_table, prm_file):
             else:
                 j = (abs(baseline_table['Bp'][i] - long_scenes0['Bp'])).idxmin()
 
+            print(len(long_scenes0))
             # Turn element on in subset array
             ID_LONG[i, j] = 1
 
@@ -470,7 +507,7 @@ def select_pairs(baseline_table, prm_file):
     return intf_inputs, intf_dates, subset_inputs, subset_dates, supermaster
 
 
-def baseline_plot(prm_file, subset_dates, baseline_table, supermaster={}):
+def baseline_plot(prm_file, subset_dates, baseline_table, baseline_mode, supermaster={}):
 
     """
     Make baseline netwwork plot for given set of interferograms
@@ -490,8 +527,9 @@ def baseline_plot(prm_file, subset_dates, baseline_table, supermaster={}):
     fig, ax = plt.subplots(figsize=(10,6))
 
     # Plot pairs
-    colors = ['k', 'steelblue', 'tomato', 'gold']
-
+    colors = ['k', 'steelblue', 'tomato', 'gold', 'green']
+    mode = int(baseline_mode)
+    print('Baseline mode: ',mode)
     for i, key in enumerate(subset_dates.keys()):
         for j, date_pair in enumerate(subset_dates[key]):
             # Get corresponding baselines
@@ -502,8 +540,17 @@ def baseline_plot(prm_file, subset_dates, baseline_table, supermaster={}):
             else:
                 label = None
 
-            ax.plot(date_pair, Bp_pair, c=colors[i], linewidth=2, zorder=0, label=label)
-
+            #ax.plot(date_pair, Bp_pair, c=colors[i], linewidth=2, zorder=0, label=label)
+            if i == 0 and mode == 1:
+              ax.plot(date_pair, Bp_pair, c=colors[i], linewidth=2, zorder=0, label=label)
+            if i == 1 and ( mode == 4 or  mode == 5 ):
+              ax.plot(date_pair, Bp_pair, c=colors[i], linewidth=2, zorder=0, label=label)
+            if i == 2 and ( mode == 2 or mode == 3 or mode == 4 or mode == 5 or mode == 7):
+              ax.plot(date_pair, Bp_pair, c=colors[i], linewidth=2, zorder=0, label=label)
+            if i == 3 and ( mode == 3 or mode == 5 ):
+              ax.plot(date_pair, Bp_pair, c=colors[i], linewidth=2, zorder=0, label=label)
+            if i == 4 and ( mode == 6 or mode == 7 ):
+              ax.plot(date_pair, Bp_pair, c=colors[i], linewidth=2, zorder=0, label=label)
 
     # Plot nodes
     for i in range(len(baseline_table)):
@@ -524,8 +571,9 @@ def baseline_plot(prm_file, subset_dates, baseline_table, supermaster={}):
         # Offset by 10 days/5 m for readability
         ax.text(baseline_table['date'][i] + 0.005*(baseline_table['date'].iloc[-1] - baseline_table['date'].iloc[0]), 
                 baseline_table['Bp'][i]   + 0.01*(baseline_table['Bp'].iloc[-1] - baseline_table['Bp'].iloc[0]), 
-                baseline_table['date'][i].strftime('%Y/%m/%d'), 
-                size=8, color=c_text, 
+                #baseline_table['date'][i].strftime('%Y/%m/%d'), 
+                baseline_table['date'][i].strftime('%m/%d'),
+                size=7, color=c_text, 
                 # bbox={'facecolor': 'w', 'pad': 0, 'edgecolor': 'w', 'alpha': 0.7}
                 )
     
@@ -533,16 +581,18 @@ def baseline_plot(prm_file, subset_dates, baseline_table, supermaster={}):
     ax.set_ylabel('Perpendicular baseline (m)')
     ax.set_xlabel('Date')
     ax.tick_params(direction='in')
-    plt.savefig(f'baseline_plot_{prm_file[:-4]}.eps')
+    #plt.savefig(f'baseline_plot_{prm_file[:-4]}.eps')
+    plt.savefig('baseline_plot.eps')
     plt.show()
 
 
-def get_prm_file(DT_MIN, DT_MAX, BP_MAX):
+def get_prm_file(DT_MIN, DT_MAX, BP_MAX, REF):
 
     text  = '# ---------- Dates ---------- \n'
     text += 'DATE_START  = 1900/01/01  # Lower bound on scene dates to use (YYYY/MM/DD) \n'
     text += 'DATE_END    = 2100/01/01  # Upper bound on scene dates to use (YYYY/MM/DD) \n'
-    text += 'DATE_MASTER = None        # Date of master scene (default: use scene closest to perpendicular baseline mean) \n'
+#    text += 'DATE_REF = None        # Date of master scene (default: use scene closest to perpendicular baseline mean) \n'
+    text += 'DATE_REF  = {}    # Date of master scene (default: use scene closest to perpendicular baseline mean) \n'.format(REF)
     text += '\n'
     text += '# ---------- Pair types ---------- \n'
     text += '# For all options, set to 0 to not include in selection process \n'
@@ -550,8 +600,9 @@ def get_prm_file(DT_MIN, DT_MAX, BP_MAX):
     text += 'SEQ        = 1    # Generate sequential pairs, starting from initial scene \n'
     text += 'SKIP       = 1    # Generate 2nd-order pairs that skip one scene) \n'
     text += 'LONG       = 1    # Generate chain of 6-18 month pairs that connect the first and last dates \n' 
-    text += 'LONG_START = 150  # Earliest Julian day to use in possible long pairs (1-366) \n'
-    text += 'LONG_END   = 270  # Latest Julian day to use in possible long pairs (1-366) \n'
+    text += 'ORIG       = 0    # Generate pairs wrt 1st acquisition \n'
+    text += 'LONG_START = 130  # Earliest Julian day to use in possible long pairs (1-366) \n'
+    text += 'LONG_END   = 280  # Latest Julian day to use in possible long pairs (1-366) \n'
     text += '\n'
     text += '# ---------- Baseline constraints ---------- \n'
     text += '# Temporal and perpendicular baseline limits may be used in the following ways: \n'
@@ -561,7 +612,7 @@ def get_prm_file(DT_MIN, DT_MAX, BP_MAX):
     text += 'BL_MODE = 1   # Choose baseline constraint mode (1, 2, or 0 to not use) \n'
     text += 'BP_MAX  = {}  # Maximum perpendicular baseline (m) \n'.format(BP_MAX)
     text += 'DT_MIN  = {}  # Minimum interferogram epoch length (days) \n'.format(DT_MIN)
-    text += 'DT_MAX  = {}  # Maximums interferogram epoch length (days) \n'.format(DT_MAX)
+    text += 'DT_MAX  = {}  # Maximum interferogram epoch length (days) \n'.format(DT_MAX)
 
     return text
 
