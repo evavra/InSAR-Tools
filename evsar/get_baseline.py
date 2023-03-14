@@ -134,7 +134,7 @@ def load_PRM(prm_file, var_in):
     prm = {}
 
     # Set date format
-    date_format = '%Y/%m/%d'
+    # date_format = '%Y/%m/%d'
 
     # Set everything uppercase just in case
     var_in = var_in.upper()
@@ -158,13 +158,16 @@ def load_PRM(prm_file, var_in):
                 # Handle different types of variable values
                 # Check date first
                 if 'DATE' in var: 
-                    try: # Only accepts dates of specified date_format
-                        val = dt.datetime.strptime(item[2], date_format)
+                    try: # Try YYYY/MM/DD
+                        val = dt.datetime.strptime(item[2], '%Y/%m/%d')
                     except ValueError:
-                        try: # Handle numbers
-                            val = float(item[2])
-                        except ValueError: # Handle anything else
-                            val = item[2]
+                        try: # Try YYYYMMDD
+                            val = dt.datetime.strptime(item[2], '%Y%m%d')                       
+                        except ValueError:
+                            try: # Handle numbers
+                                val = float(item[2])
+                            except ValueError: # Handle anything else
+                                val = item[2]
 
                 else: # Handle numbers
                     try:
@@ -632,8 +635,8 @@ def get_prm_file(DT_MIN, DT_MAX, BP_MAX, DATE_REF):
     text  = '# ---------- Dates ---------- \n'
     text += 'DATE_START = 1900/01/01  # Lower bound on scene dates to use (YYYY/MM/DD) \n'
     text += 'DATE_END   = 2100/01/01  # Upper bound on scene dates to use (YYYY/MM/DD) \n'
-    text += 'DATE_REF   = {}          # Date of master scene (YYYY/MM/DD) \n' 
-    text += '                         # Default: use scene closest to perpendicular baseline mean] \n'.format(DATE_REF)
+    text += 'DATE_REF   = {}          # Date of master scene (YYYY/MM/DD) \n'.format(DATE_REF)
+    text += '                         # Default: use scene closest to perpendicular baseline mean] \n'
     text += '\n'
     text += '# ---------- Pair types ---------- \n'
     text += '# For all options, set to 0 to not include in selection process \n'
