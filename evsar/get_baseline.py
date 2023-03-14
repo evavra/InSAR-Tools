@@ -21,7 +21,7 @@ def main():
         DT_MAX    - maximum interferogram epoch length (days)
         BP_MAX    - maximum perpendicular baseline (m)
         file_name - name of parameter file to create (i.e. file_name.PRM)
-        DATE_REF  - [optional] reference date (YYYYMMDD)
+        DATE_REF  - [optional] reference date (YYYY/MM/DD)
 
     Output:
         file_name.PRM - interferogram selection parameter file (saved to disk)
@@ -356,7 +356,7 @@ def select_pairs(baseline_table, prm_file, modes):
 
     # 3) If LAST is specified, make all interferograms connecting to the 1st data take
     if bool(selected_modes['LAST']) == True:
-        print('LAST  - interferograms with respect to first date')
+        print('LAST  - interferograms with respect to last date')
 
         ID_LAST = np.zeros((N, N))
 
@@ -369,7 +369,7 @@ def select_pairs(baseline_table, prm_file, modes):
 
     # 4) If REF is specified, make all interferograms connecting to the 1st data take
     if bool(selected_modes['REF']) == True:
-        print('REF   - interferograms with respect to first date')
+        print('REF   - interferograms with respect to reference date')
 
         ID_REF = np.zeros((N, N))
 
@@ -632,7 +632,8 @@ def get_prm_file(DT_MIN, DT_MAX, BP_MAX, DATE_REF):
     text  = '# ---------- Dates ---------- \n'
     text += 'DATE_START = 1900/01/01  # Lower bound on scene dates to use (YYYY/MM/DD) \n'
     text += 'DATE_END   = 2100/01/01  # Upper bound on scene dates to use (YYYY/MM/DD) \n'
-    text += 'DATE_REF   = {}    # Date of master scene (default: use scene closest to perpendicular baseline mean) \n'.format(DATE_REF)
+    text += 'DATE_REF   = {}          # Date of master scene (YYYY/MM/DD) \n' 
+    text += '                         # Default: use scene closest to perpendicular baseline mean] \n'.format(DATE_REF)
     text += '\n'
     text += '# ---------- Pair types ---------- \n'
     text += '# For all options, set to 0 to not include in selection process \n'
