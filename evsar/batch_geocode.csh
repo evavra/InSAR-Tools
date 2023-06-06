@@ -25,5 +25,6 @@ foreach grd (`ls $file_type`)
     # echo "Geocoding "$stem".grd..."
     # echo $stem".grd "$stem"_ll.grd"
     # grdcut $intf_dir/$intf/$file_type.grd -G$intf_dir/$intf/$new_file.grd -R$region
-    proj_ra2ll.csh $trans_dat $stem".grd "$stem"_ll.grd"
+	proj_ra2ll.csh $trans_dat $stem'.grd' $stem'_ll.grd'
+	#echo $trans_dat $stem".grd "$stem"_ll.grd"
 end
